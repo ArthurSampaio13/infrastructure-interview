@@ -1,4 +1,8 @@
 resource "null_resource" "gateway_api_crds" {
+  triggers = {
+    version = var.chart_versions.nginx_gateway_fabric
+  }
+
   provisioner "local-exec" {
     command = "kubectl --kubeconfig ${var.kubeconfig_path} apply -k 'https://github.com/nginx/nginx-gateway-fabric/config/crd/gateway-api/standard?ref=v${var.chart_versions.nginx_gateway_fabric}'"
   }
