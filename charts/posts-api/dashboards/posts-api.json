@@ -1,0 +1,48 @@
+{
+  "uid": "posts-api",
+  "title": "posts-api",
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Requests/s",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "targets": [{ "expr": "sum(rate(http_requests_total[1m]))", "legendFormat": "rps" }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Latency",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Error rate",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "targets": [{ "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))", "legendFormat": "5xx ratio" }]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Replicas",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "kube_deployment_status_replicas_ready{deployment=\"posts-api\"}", "legendFormat": "ready" },
+        { "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"posts-api\"}", "legendFormat": "desired" }
+      ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "MySQL members up",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "targets": [{ "expr": "sum(mysql_up{namespace=\"mysql\"})", "legendFormat": "members" }]
+    },
+    {
+      "id": 6, "type": "logs", "title": "Logs",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [{ "expr": "{app=\"posts-api\"} | json" }]
+    }
+  ],
+  "schemaVersion": 39
+}

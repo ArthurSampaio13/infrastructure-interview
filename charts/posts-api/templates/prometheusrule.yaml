@@ -1,0 +1,38 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}
+  labels: {{- include "posts-api.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: posts-api
+      rules:
+        - alert: PostsApiHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+              / sum(rate(http_requests_total[5m])) > 0.01
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: posts-api 5xx rate above 1%
+        - alert: PostsApiHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: posts-api p95 latency above 500ms
+        - alert: PostsApiReplicasBelowPDB
+          expr: |
+            kube_deployment_status_replicas_ready{deployment="{{ .Release.Name }}"}
+              < {{ .Values.podDisruptionBudget.minAvailable }}
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: posts-api ready replicas below the disruption budget
+{{- end }}
