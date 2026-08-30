@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+.terragrunt-cache/
+.terragrunt-stack/
+.state/
+charts/**/charts/*.tgz
+*.tgz
+kubeconfig*
