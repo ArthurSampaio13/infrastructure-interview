@@ -1,0 +1,4 @@
+image:
+  pullPolicy: IfNotPresent
+route:
+  hostname: posts.local.test
