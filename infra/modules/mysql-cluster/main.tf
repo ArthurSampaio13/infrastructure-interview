@@ -115,7 +115,7 @@ resource "kubernetes_job" "app_user" {
             mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "
               CREATE DATABASE IF NOT EXISTS ${var.db_name};
               CREATE USER IF NOT EXISTS '${var.db_user}'@'%' IDENTIFIED BY '$APP_PASSWORD';
-              GRANT ALL PRIVILEGES ON ${var.db_name}.* TO '${var.db_user}'@'%';"
+              GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP, REFERENCES ON ${var.db_name}.* TO '${var.db_user}'@'%';"
           EOT
           ]
         }
