@@ -27,6 +27,10 @@ spec:
         - port: {{ .Values.env.port }}
   egress:
     - to:
+        - podSelector: {}
+      ports:
+        - port: {{ .Values.env.port }}
+    - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.mysql.namespace }}
