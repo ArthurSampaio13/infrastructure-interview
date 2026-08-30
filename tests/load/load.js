@@ -18,9 +18,18 @@ export const options = {
 const BASE = __ENV.BASE_URL || "https://posts.local.test";
 const headers = { "Content-Type": "application/json" };
 
-export default function () {
+export function setup() {
+  const r = http.post(
+    `${BASE}/posts`,
+    JSON.stringify({ title: "load", text: "load test post" }),
+    { headers },
+  );
+  return { id: r.json("id") };
+}
+
+export default function (data) {
   if (Math.random() < 0.8) {
-    check(http.get(`${BASE}/posts`), { "read ok": (r) => r.status === 200 });
+    check(http.get(`${BASE}/posts/${data.id}`), { "read ok": (r) => r.status === 200 });
   } else {
     const res = http.post(
       `${BASE}/posts`,
