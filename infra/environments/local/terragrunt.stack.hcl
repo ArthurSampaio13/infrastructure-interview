@@ -7,3 +7,8 @@ unit "platform_addons" {
   source = "${get_repo_root()}/infra/units/platform-addons"
   path   = "platform-addons"
 }
+
+unit "mysql_cluster" {
+  source = "${get_repo_root()}/infra/units/mysql-cluster"
+  path   = "mysql-cluster"
+}

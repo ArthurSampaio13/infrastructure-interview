@@ -1,0 +1,4 @@
+instances: 3
+router_instances: 2
+db_name: posts
+db_user: posts
