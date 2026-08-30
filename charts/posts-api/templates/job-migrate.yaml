@@ -15,6 +15,7 @@ spec:
       labels: {{- include "posts-api.selectorLabels" . | nindent 8 }}
     spec:
       restartPolicy: Never
+      serviceAccountName: {{ .Release.Name }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- range . }}
