@@ -24,7 +24,9 @@ export function setup() {
     JSON.stringify({ title: "load", text: "load test post" }),
     { headers },
   );
-  return { id: r.json("id") };
+  const id = r.status === 201 ? r.json("id") : undefined;
+  if (!id) throw new Error(`seed post failed: status ${r.status}`);
+  return { id };
 }
 
 export default function (data) {
