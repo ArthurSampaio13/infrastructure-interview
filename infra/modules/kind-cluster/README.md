@@ -3,6 +3,7 @@
 
 | Name | Version |
 |------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.0 |
 | <a name="requirement_kind"></a> [kind](#requirement\_kind) | ~> 0.9 |
 | <a name="requirement_local"></a> [local](#requirement\_local) | ~> 2.5 |
 
