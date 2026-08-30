@@ -1,0 +1,9 @@
+# openssl CVEs in gcr.io/distroless/nodejs22-debian12:nonroot (libssl3 3.0.18-1~deb12u2).
+# Fixed in Debian 3.0.19+/3.0.20 but no rebuilt distroless image is published yet.
+# Remove these entries when the base image ships a patched libssl3 (added 2026-08-30).
+CVE-2026-31789
+CVE-2026-28387
+CVE-2026-28388
+CVE-2026-28389
+CVE-2026-28390
+CVE-2026-45447
