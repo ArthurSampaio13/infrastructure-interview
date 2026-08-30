@@ -26,6 +26,8 @@ async function main() {
         process.exit(0);
       });
     });
+    server.closeIdleConnections();
+    opsServer.closeIdleConnections();
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));

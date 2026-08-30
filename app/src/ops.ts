@@ -14,14 +14,21 @@ export function buildOpsApp(state: AppState) {
 
   app.get("/readyz", async (_req, res) => {
     if (state.shuttingDown) return res.status(503).json({ status: "shutting down" });
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
+      const query = dataSource.query("SELECT 1");
+      query.catch(() => {});
       await Promise.race([
-        dataSource.query("SELECT 1"),
-        new Promise((_r, reject) => setTimeout(() => reject(new Error("timeout")), 2000)),
+        query,
+        new Promise((_r, reject) => {
+          timer = setTimeout(() => reject(new Error("timeout")), 2000);
+        }),
       ]);
       res.json({ status: "ready" });
     } catch {
       res.status(503).json({ status: "database unavailable" });
+    } finally {
+      clearTimeout(timer);
     }
   });
 
