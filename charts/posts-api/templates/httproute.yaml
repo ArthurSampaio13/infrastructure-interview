@@ -1,0 +1,18 @@
+{{- if .Values.route.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}
+  labels: {{- include "posts-api.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.route.parentRef.name }}
+      namespace: {{ .Values.route.parentRef.namespace }}
+      sectionName: {{ .Values.route.parentRef.sectionName }}
+  hostnames:
+    - {{ .Values.route.hostname }}
+  rules:
+    - backendRefs:
+        - name: {{ .Release.Name }}
+          port: {{ .Values.env.port }}
+{{- end }}

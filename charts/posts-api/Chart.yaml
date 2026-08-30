@@ -1,0 +1,15 @@
+apiVersion: v2
+name: posts-api
+description: Posts API deployment for the infrastructure interview challenge
+type: application
+version: "0.1.0"
+appVersion: "0.1.0"
+keywords:
+  - posts
+  - express
+  - typeorm
+sources:
+  - https://github.com/ArthurSampaio13/infrastructure-interview
+maintainers:
+  - name: ArthurSampaio13
+    url: https://github.com/ArthurSampaio13

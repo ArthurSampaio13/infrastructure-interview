@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels: {{- include "posts-api.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "posts-api.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.env.port }}
+      targetPort: http
+    - name: metrics
+      port: {{ .Values.env.metricsPort }}
+      targetPort: metrics

@@ -1,0 +1,80 @@
+# -- Number of replicas when autoscaling is disabled
+replicaCount: 3
+
+image:
+  # -- Image repository
+  repository: skizay/posts-api
+  # -- Image tag; defaults to the chart appVersion
+  tag: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Pull secrets for private registries, list of names
+imagePullSecrets: []
+
+# -- Name of the Secret holding DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+dbSecretName: posts-api-db
+
+env:
+  # -- HTTP port the API listens on
+  port: 3000
+  # -- Port for health and metrics endpoints
+  metricsPort: 9464
+  # -- pino log level
+  logLevel: info
+
+route:
+  # -- Create an HTTPRoute
+  enabled: true
+  # -- Public hostname
+  hostname: posts.local.test
+  # -- Gateway to attach to
+  parentRef:
+    name: gateway
+    namespace: gateway
+    sectionName: https
+
+migration:
+  # -- Run migrations as a pre-install/pre-upgrade hook job
+  enabled: true
+
+autoscaling:
+  # -- Enable the HorizontalPodAutoscaler
+  enabled: true
+  # -- Minimum replicas
+  minReplicas: 3
+  # -- Maximum replicas
+  maxReplicas: 10
+  # -- Target CPU utilization percentage
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  # -- Enable the PodDisruptionBudget
+  enabled: true
+  # -- Minimum available pods during disruptions
+  minAvailable: 2
+
+networkPolicy:
+  # -- Enable the NetworkPolicy
+  enabled: true
+  # -- Namespace where the Gateway data plane runs
+  gatewayNamespace: gateway
+  # -- Namespace where Prometheus runs
+  monitoringNamespace: monitoring
+  # -- Namespace and port of the MySQL router
+  mysql:
+    namespace: mysql
+    port: 6446
+
+metrics:
+  # -- Create ServiceMonitor and PrometheusRule (requires the Prometheus operator CRDs)
+  enabled: true
+
+# -- Resource requests and limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
