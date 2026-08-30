@@ -1,0 +1,8 @@
+chart_versions:
+  nginx_gateway_fabric: "2.6.7"
+  cert_manager: "v1.21.1"
+  kube_prometheus_stack: "88.6.1"
+  loki: "7.3.0"
+  alloy: "1.12.1"
+  metrics_server: "3.14.0"
+  mysql_operator: "2.3.0"
