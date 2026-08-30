@@ -1,6 +1,7 @@
 nginx:
   service:
     type: NodePort
+    externalTrafficPolicy: Cluster
     nodePorts:
       - port: 30080
         listenerPort: 80
