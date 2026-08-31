@@ -5,6 +5,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  packages: write
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -39,13 +40,11 @@ jobs:
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - run: cosign sign --yes skizay/posts-api:${{ steps.version.outputs.version }}
       - run: |
-          echo "$DOCKERHUB_TOKEN" \
-            | helm registry login registry-1.docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+          echo "$GH_TOKEN" | helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           helm package charts/posts-api --app-version "${{ steps.version.outputs.version }}"
-          helm push posts-api-*.tgz oci://registry-1.docker.io/skizay
+          helm push posts-api-*.tgz oci://ghcr.io/arthursampaio13/charts
         env:
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          GH_TOKEN: ${{ github.token }}
       - run: gh release create "$GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}

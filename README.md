@@ -291,7 +291,8 @@ if anything fails.
 `docker.io/skizay/posts-api` (tagged with the version and `latest`) and
 `docker.io/skizay/posts-api-private` (tagged with the version only), signs the
 public image with cosign in keyless mode, packages the Helm chart and pushes it as
-an OCI artifact to `oci://registry-1.docker.io/skizay`, and creates a GitHub Release
+an OCI artifact to `oci://ghcr.io/arthursampaio13/charts` (a separate registry path,
+so the chart and the image never compete for the same tag), and creates a GitHub Release
 with generated notes. It fails early if `Chart.yaml`'s version does not match the
 tag, so the chart and the image never disagree about which version they are; the
 chart is at `0.2.0`, so the first release tag is `v0.2.0`. It needs the
