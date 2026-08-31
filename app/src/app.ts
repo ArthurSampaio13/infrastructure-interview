@@ -21,6 +21,10 @@ export function buildApp() {
   app.use(router);
   app.use((_req, res) => res.status(404).json({ error: "not found" }));
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    if ((err as { type?: string }).type === "entity.parse.failed") {
+      res.status(400).json({ error: "invalid json body" });
+      return;
+    }
     req.log.error(err, "unhandled error");
     res.status(500).json({ error: "internal error" });
   });
