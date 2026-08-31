@@ -43,6 +43,16 @@ resource "kubernetes_secret" "root" {
   }
 }
 
+resource "kubernetes_secret" "app_user" {
+  metadata {
+    name      = "posts-app-user"
+    namespace = kubernetes_namespace.mysql.metadata[0].name
+  }
+  data = {
+    password = random_password.app.result
+  }
+}
+
 resource "kubectl_manifest" "innodb_cluster" {
   yaml_body  = <<-EOT
     apiVersion: mysql.oracle.com/v2
@@ -56,6 +66,15 @@ resource "kubectl_manifest" "innodb_cluster" {
       instances: ${var.instances}
       router:
         instances: ${var.router_instances}
+        podSpec:
+          containers:
+            - name: router
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 256Mi
       datadirVolumeClaimTemplate:
         accessModes: ["ReadWriteOnce"]
         resources:
@@ -115,12 +134,22 @@ resource "kubernetes_job" "app_user" {
           name  = "mysql-client"
           image = "mysql:8.4"
           env {
-            name  = "MYSQL_PWD"
-            value = random_password.root.result
+            name = "MYSQL_PWD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.root.metadata[0].name
+                key  = "rootPassword"
+              }
+            }
           }
           env {
-            name  = "APP_PASSWORD"
-            value = random_password.app.result
+            name = "APP_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.app_user.metadata[0].name
+                key  = "password"
+              }
+            }
           }
           command = ["bash", "-c", <<-EOT
             mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "
