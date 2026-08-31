@@ -5,9 +5,19 @@ metadata:
   labels: {{- include "posts-api.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: check
       image: curlimages/curl:8.11.1
       command: ["curl", "-fsS", "http://{{ .Release.Name }}:{{ .Values.env.port }}/posts"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

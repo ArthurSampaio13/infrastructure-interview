@@ -1,12 +1,23 @@
 resource "kubernetes_namespace" "mysql" {
   metadata {
     name = "mysql"
+    # the operator runs a root init container to fix the datadir, so restricted would reject it
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "baseline"
+      "pod-security.kubernetes.io/warn"    = "baseline"
+      "pod-security.kubernetes.io/audit"   = "baseline"
+    }
   }
 }
 
 resource "kubernetes_namespace" "app" {
   metadata {
     name = "posts-api"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "restricted"
+      "pod-security.kubernetes.io/warn"    = "restricted"
+      "pod-security.kubernetes.io/audit"   = "restricted"
+    }
   }
 }
 
