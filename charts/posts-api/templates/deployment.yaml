@@ -11,7 +11,7 @@ spec:
     matchLabels: {{- include "posts-api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      labels: {{- include "posts-api.selectorLabels" . | nindent 8 }}
+      labels: {{- include "posts-api.podSelectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Release.Name }}
       {{- with .Values.imagePullSecrets }}
@@ -26,7 +26,7 @@ spec:
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
-            matchLabels: {{- include "posts-api.selectorLabels" . | nindent 14 }}
+            matchLabels: {{- include "posts-api.podSelectorLabels" . | nindent 14 }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -34,7 +34,7 @@ spec:
               podAffinityTerm:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
-                  matchLabels: {{- include "posts-api.selectorLabels" . | nindent 20 }}
+                  matchLabels: {{- include "posts-api.podSelectorLabels" . | nindent 20 }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532

@@ -13,3 +13,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- define "posts-api.image" -}}
 {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
 {{- end }}
+
+{{- define "posts-api.podSelectorLabels" -}}
+{{ include "posts-api.selectorLabels" . }}
+app.kubernetes.io/component: api
+{{- end }}

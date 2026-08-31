@@ -5,7 +5,7 @@ metadata:
   labels: {{- include "posts-api.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
-  selector: {{- include "posts-api.selectorLabels" . | nindent 4 }}
+  selector: {{- include "posts-api.podSelectorLabels" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.env.port }}
