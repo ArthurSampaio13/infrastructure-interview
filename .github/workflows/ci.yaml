@@ -1,0 +1,65 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+permissions:
+  contents: read
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+      - run: npm ci && npm run lint && npm run format && npm run build
+        working-directory: app
+      - run: docker build -t posts-api:ci app
+      - run: trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 posts-api:ci
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+      - run: helm lint charts/posts-api
+      - run: |
+          helm-docs --chart-search-root charts
+          git diff --exit-code charts
+      - run: |
+          helm template posts-api charts/posts-api --namespace posts-api \
+            | kubeconform -strict -summary \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+      - if: github.event_name == 'pull_request'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if ! git diff --quiet "$base" -- charts; then
+            old=$(git show "$base:charts/posts-api/Chart.yaml" | yq .version)
+            new=$(yq .version charts/posts-api/Chart.yaml)
+            if [ "$old" = "$new" ]; then
+              echo "charts/ changed but Chart.yaml version was not bumped" >&2
+              exit 1
+            fi
+          fi
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+      - run: tofu fmt -check -recursive infra/modules
+      - run: terragrunt hcl fmt --check --working-dir infra
+      - run: |
+          for m in infra/modules/*/; do
+            terraform-docs markdown table --output-file README.md --output-check "$m"
+            tflint --chdir "$m"
+          done
+      - run: terragrunt stack run validate --non-interactive
+        working-directory: infra/environments/local
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+      - run: pre-commit run --all-files
+      - run: actionlint

@@ -1,0 +1,29 @@
+name: e2e
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+      - run: make infra
+      - run: kind export kubeconfig --name interview
+      - run: make build kind-load deploy
+      - run: echo "127.0.0.1 posts.local.test grafana.local.test" | sudo tee -a /etc/hosts
+      - run: make test
+      - run: helm test posts-api -n posts-api
+      - if: failure()
+        run: |
+          mkdir -p /tmp/diag
+          kubectl get pods -A -o wide > /tmp/diag/pods.txt
+          kubectl get events -A --sort-by=.lastTimestamp > /tmp/diag/events.txt
+          kubectl logs -n posts-api -l app.kubernetes.io/name=posts-api --tail=-1 > /tmp/diag/app.log || true
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diagnostics
+          path: /tmp/diag
