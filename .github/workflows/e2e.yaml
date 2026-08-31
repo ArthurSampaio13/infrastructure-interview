@@ -19,8 +19,8 @@ jobs:
       - if: failure()
         run: |
           mkdir -p /tmp/diag
-          kubectl get pods -A -o wide > /tmp/diag/pods.txt
-          kubectl get events -A --sort-by=.lastTimestamp > /tmp/diag/events.txt
+          kubectl get pods -A -o wide > /tmp/diag/pods.txt || true
+          kubectl get events -A --sort-by=.lastTimestamp > /tmp/diag/events.txt || true
           kubectl logs -n posts-api -l app.kubernetes.io/name=posts-api --tail=-1 > /tmp/diag/app.log || true
       - if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
