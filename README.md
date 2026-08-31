@@ -152,6 +152,11 @@ the chart or Gateway configuration would need to change.
 
 #### OpenTofu and Terragrunt for the platform, plain Helm for the app
 
+OpenTofu rather than Terraform: HashiCorp relicensed Terraform under the BSL in
+2023, and OpenTofu is the Linux Foundation fork that stayed open source. It is a
+drop-in replacement for the code here and resolves the same providers from the
+same registry.
+
 The platform (cluster, addons, database) changes rarely and benefits from
 Terraform-style state and plan/apply review. The app changes on every commit and
 needs a fast, ordinary `helm upgrade` path, including from CI. Splitting them means
@@ -170,6 +175,18 @@ pipeline.
 The original app targeted an EOL Node line and an old TypeORM major version with a
 callback-heavy API. Moving to current majors is a normal maintenance step, and it
 unblocks distroless images, which only ship supported runtimes.
+
+#### Cost
+
+Nothing here bills, but the same choices are what keep a real bill down. `e2e.yaml`
+is `workflow_dispatch` only, so a kind cluster is not built on every push and the
+expensive job runs when someone asks for it. Prometheus keeps 24h of data, which is
+enough to read a chaos run and small enough to fit the single node it runs on. Every
+workload declares requests and limits, so the scheduler packs nodes instead of
+guessing, and the HPA is capped (`maxReplicas` 6 locally) so a traffic spike cannot
+scale the bill without a ceiling. Observability runs as a single-node stack with a
+single-binary Loki rather than a distributed one, which is the right trade at this
+size and the first thing to revisit at a larger one.
 
 #### What was left out on purpose
 
@@ -224,6 +241,9 @@ Losing a single MySQL instance is self-healing: group replication elects a new
 primary automatically and the router redirects traffic to it, with no operator
 intervention needed. This is what the "MySQL primary kill" chaos scenario checks.
 
+The MySQL Routers restart when the cluster loses quorum, which is what the chaos
+scenarios provoke; they recover on their own once the cluster is ONLINE again.
+
 #### Recovering from a full outage
 
 If every MySQL pod restarts at once, a host reboot, for example, group replication
@@ -272,8 +292,11 @@ if anything fails.
 `docker.io/skizay/posts-api-private` (tagged with the version only), signs the
 public image with cosign in keyless mode, packages the Helm chart and pushes it as
 an OCI artifact to `oci://registry-1.docker.io/skizay`, and creates a GitHub Release
-with generated notes. It needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repo
-secrets. Releases are tagged on `main`, which stays a rebase of `develop`.
+with generated notes. It fails early if `Chart.yaml`'s version does not match the
+tag, so the chart and the image never disagree about which version they are; the
+chart is at `0.2.0`, so the first release tag is `v0.2.0`. It needs the
+`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repo secrets. Releases are tagged on
+`main`, which stays a rebase of `develop`.
 
 ## Private registry
 
@@ -282,8 +305,12 @@ pull secret from a Docker Hub token:
 
 ```bash
 DOCKERHUB_USERNAME=<user> DOCKERHUB_TOKEN=<token> scripts/registry/create-pull-secret.sh
-make deploy REGISTRY=private
+make deploy REGISTRY=private TAG=0.2.0
 ```
+
+The tag is explicit because `release.yaml` only ever pushes released version tags to
+`skizay/posts-api-private`. The default `TAG=dev` belongs to the local build path,
+which loads the image straight into the kind nodes and never pushes it anywhere.
 
 The script creates a `dockerhub` image pull secret in the `posts-api` namespace.
 `REGISTRY=private` points the deploy at the private repository and adds that secret
