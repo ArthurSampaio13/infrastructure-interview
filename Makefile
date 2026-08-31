@@ -1,3 +1,5 @@
+export KUBECONFIG ?= $(HOME)/.kube/kind-interview.yaml
+
 CLUSTER ?= interview
 ENV_DIR := infra/environments/local
 IMAGE ?= skizay/posts-api

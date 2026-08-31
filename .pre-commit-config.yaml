@@ -17,3 +17,47 @@ repos:
     hooks:
       - id: shfmt
         args: [-i, "2", -ci]
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier (app/src)
+        language: system
+        entry: bash -c 'cd app && mise exec -- npx prettier --check src'
+        pass_filenames: false
+        files: ^app/src/
+      - id: tofu-fmt
+        name: tofu fmt
+        language: system
+        entry: mise exec -- tofu fmt -check -recursive infra/modules
+        pass_filenames: false
+        files: ^infra/modules/
+      - id: terragrunt-hcl-fmt
+        name: terragrunt hcl fmt
+        language: system
+        entry: mise exec -- terragrunt hcl fmt --check --working-dir infra
+        pass_filenames: false
+        files: ^infra/
+      - id: terraform-docs
+        name: terraform-docs drift
+        language: system
+        entry: bash -c 'for m in infra/modules/*/; do mise exec -- terraform-docs markdown table --output-file README.md --output-check "$m" || exit 1; done'
+        pass_filenames: false
+        files: ^infra/modules/
+      - id: tflint
+        name: tflint
+        language: system
+        entry: bash -c 'for m in infra/modules/*/; do mise exec -- tflint --chdir "$m" || exit 1; done'
+        pass_filenames: false
+        files: ^infra/modules/
+      - id: helm-docs
+        name: helm-docs drift
+        language: system
+        entry: bash -c 'mise exec -- helm-docs --chart-search-root charts && git diff --exit-code charts/posts-api/README.md'
+        pass_filenames: false
+        files: ^charts/
+      - id: actionlint
+        name: actionlint
+        language: system
+        entry: mise exec -- actionlint
+        pass_filenames: false
+        files: ^\.github/workflows/
