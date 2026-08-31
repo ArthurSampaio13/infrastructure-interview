@@ -21,6 +21,7 @@ done
 log "$ZONE down; app replica from that zone stays Pending until the zone returns"
 finish_load "zone outage ($ZONE)"
 
+for n in "${NODES[@]}"; do kubectl uncordon "$n"; done
 log "$ZONE restored"
 
 log "waiting for mysql InnoDBCluster to report ONLINE 3"
@@ -30,7 +31,15 @@ for _ in $(seq 1 30); do
   sleep 10
 done
 
-log "waiting for posts-api rollout to report 3/3 ready"
-kubectl -n posts-api rollout status deployment posts-api --timeout=600s
+log "waiting for posts-api to report all desired replicas ready"
+ready=0
+for _ in $(seq 1 60); do
+  desired=$(kubectl -n posts-api get deploy posts-api -o jsonpath='{.spec.replicas}')
+  actual=$(kubectl -n posts-api get deploy posts-api -o jsonpath='{.status.readyReplicas}' || true)
+  actual="${actual:-0}"
+  [[ "$actual" == "$desired" ]] && { ready=1; break; }
+  sleep 10
+done
+[[ "$ready" == 1 ]] || die "posts-api did not reach $desired/$desired ready replicas within 600s"
 
 log "recovery confirmed: mysql ONLINE 3, posts-api 3/3"
