@@ -11,8 +11,8 @@
 
 | Name | Version |
 |------|---------|
-| <a name="provider_kind"></a> [kind](#provider\_kind) | ~> 0.9 |
-| <a name="provider_local"></a> [local](#provider\_local) | ~> 2.5 |
+| <a name="provider_kind"></a> [kind](#provider\_kind) | 0.11.0 |
+| <a name="provider_local"></a> [local](#provider\_local) | 2.9.0 |
 
 ## Modules
 
