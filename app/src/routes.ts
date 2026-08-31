@@ -10,9 +10,8 @@ const postSchema = z.object({
 });
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
-const wrap =
-  (fn: Handler) => (req: Request, res: Response, next: NextFunction) =>
-    fn(req, res).catch(next);
+const wrap = (fn: Handler) => (req: Request, res: Response, next: NextFunction) =>
+  fn(req, res).catch(next);
 
 const repo = () => dataSource.getRepository(Post);
 
@@ -41,7 +40,9 @@ router.post(
   wrap(async (req, res) => {
     const body = postSchema.safeParse(req.body);
     if (!body.success) {
-      return res.status(400).json({ error: "invalid body", details: body.error.flatten().fieldErrors });
+      return res
+        .status(400)
+        .json({ error: "invalid body", details: body.error.flatten().fieldErrors });
     }
     const post = repo().create(body.data);
     res.status(201).json(await repo().save(post));
