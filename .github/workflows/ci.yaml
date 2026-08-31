@@ -35,7 +35,11 @@ jobs:
         run: |
           base="${{ github.event.pull_request.base.sha }}"
           if ! git diff --quiet "$base" -- charts; then
-            old=$(git show "$base:charts/posts-api/Chart.yaml" | yq .version)
+            old=$(git show "$base:charts/posts-api/Chart.yaml" 2>/dev/null | yq .version || true)
+            if [ -z "$old" ]; then
+              echo "chart is new at base, no bump required"
+              exit 0
+            fi
             new=$(yq .version charts/posts-api/Chart.yaml)
             if [ "$old" = "$new" ]; then
               echo "charts/ changed but Chart.yaml version was not bumped" >&2
