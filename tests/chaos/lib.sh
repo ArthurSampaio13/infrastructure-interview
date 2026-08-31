@@ -4,7 +4,6 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../../scripts/utils/common.sh"
 
 start_load() {
-  # mise exec: the PATH k6 is a different (incompatible) version.
   DURATION="${DURATION:-2m}" mise exec -- k6 run --quiet "$(dirname "${BASH_SOURCE[0]}")/../load/load.js" &
   K6_PID=$!
   sleep 10

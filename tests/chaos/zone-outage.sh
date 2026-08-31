@@ -25,19 +25,27 @@ for n in "${NODES[@]}"; do kubectl uncordon "$n"; done
 log "$ZONE restored"
 
 log "waiting for mysql InnoDBCluster to report ONLINE 3"
+online_ready=0
 for _ in $(seq 1 30); do
   online=$(kubectl -n mysql get innodbcluster mysql -o jsonpath='{.status.cluster.status}' 2>/dev/null || true)
-  [[ "$online" == "ONLINE" ]] && kubectl -n mysql get innodbcluster mysql -o jsonpath='{.status.cluster.onlineInstances}' | grep -qx 3 && break
+  [[ "$online" == "ONLINE" ]] && kubectl -n mysql get innodbcluster mysql -o jsonpath='{.status.cluster.onlineInstances}' | grep -qx 3 && {
+    online_ready=1
+    break
+  }
   sleep 10
 done
+[[ "$online_ready" == 1 ]] || die "mysql InnoDBCluster did not reach ONLINE 3 within 300s"
 
 log "waiting for posts-api to report all desired replicas ready"
 ready=0
 for _ in $(seq 1 60); do
-  desired=$(kubectl -n posts-api get deploy posts-api -o jsonpath='{.spec.replicas}')
+  desired=$(kubectl -n posts-api get deploy posts-api -o jsonpath='{.spec.replicas}' || true)
   actual=$(kubectl -n posts-api get deploy posts-api -o jsonpath='{.status.readyReplicas}' || true)
   actual="${actual:-0}"
-  [[ "$actual" == "$desired" ]] && { ready=1; break; }
+  [[ "$actual" == "$desired" ]] && {
+    ready=1
+    break
+  }
   sleep 10
 done
 [[ "$ready" == 1 ]] || die "posts-api did not reach $desired/$desired ready replicas within 600s"
