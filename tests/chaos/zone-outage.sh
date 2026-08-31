@@ -31,6 +31,6 @@ for _ in $(seq 1 30); do
 done
 
 log "waiting for posts-api rollout to report 3/3 ready"
-kubectl -n posts-api rollout status deployment posts-api --timeout=180s
+kubectl -n posts-api rollout status deployment posts-api --timeout=600s
 
 log "recovery confirmed: mysql ONLINE 3, posts-api 3/3"

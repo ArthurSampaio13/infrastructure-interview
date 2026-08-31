@@ -2,3 +2,5 @@ image:
   pullPolicy: IfNotPresent
 route:
   hostname: posts.local.test
+autoscaling:
+  maxReplicas: 6

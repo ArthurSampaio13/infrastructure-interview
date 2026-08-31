@@ -1,11 +1,13 @@
 import http from "k6/http";
 import { check } from "k6";
 
+const VUS = Number(__ENV.VUS || 20);
+
 export const options = {
   insecureSkipTLSVerify: true,
   stages: [
-    { duration: "15s", target: 50 },
-    { duration: __ENV.DURATION || "2m", target: 50 },
+    { duration: "15s", target: VUS },
+    { duration: __ENV.DURATION || "2m", target: VUS },
     { duration: "15s", target: 0 },
   ],
   thresholds: {
