@@ -29,7 +29,8 @@ jobs:
           fi
         env:
           VERSION: ${{ steps.version.outputs.version }}
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: app
           platforms: linux/amd64,linux/arm64
@@ -38,8 +39,13 @@ jobs:
             skizay/posts-api:${{ steps.version.outputs.version }}
             skizay/posts-api:latest
             skizay/posts-api-private:${{ steps.version.outputs.version }}
+      - run: trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 "skizay/posts-api@$DIGEST"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
-      - run: cosign sign --yes skizay/posts-api:${{ steps.version.outputs.version }}
+      - run: cosign sign --yes "skizay/posts-api@$DIGEST"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
       - run: |
           echo "$GH_TOKEN" | helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           helm package charts/posts-api --app-version "${{ steps.version.outputs.version }}"
