@@ -253,7 +253,7 @@ from a `mysqlsh` shell in one of the MySQL pods:
 
 ```bash
 PW=$(kubectl -n mysql get secret mysql-root -o jsonpath='{.data.rootPassword}' | base64 -d)
-kubectl -n mysql exec -it mysql-0 -c mysql -- mysqlsh -uroot -p"$PW" \
+kubectl -n mysql exec -it mysql-0 -c mysql -- mysqlsh --js -uroot -p"$PW" \
   -e "dba.rebootClusterFromCompleteOutage()"
 ```
 
