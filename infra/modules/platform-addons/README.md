@@ -36,6 +36,7 @@ No modules.
 | [helm_release.mysql_operator](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [helm_release.ngf](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [kubectl_manifest.gateway](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
+| [kubectl_manifest.gateway_nginx_pdb](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
 | [kubectl_manifest.grafana_httproute](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
 | [kubectl_manifest.issuer_local_ca](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
 | [kubectl_manifest.issuer_selfsigned](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |

@@ -136,3 +136,19 @@ resource "kubectl_manifest" "ngf_podmonitor" {
   EOT
   depends_on = [helm_release.ngf, helm_release.kube_prometheus_stack]
 }
+
+resource "kubectl_manifest" "gateway_nginx_pdb" {
+  yaml_body  = <<-EOT
+    apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: gateway-nginx
+      namespace: gateway
+    spec:
+      maxUnavailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: gateway-nginx
+  EOT
+  depends_on = [kubectl_manifest.gateway]
+}

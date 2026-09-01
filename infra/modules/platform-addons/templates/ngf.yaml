@@ -1,4 +1,5 @@
 nginx:
+  replicas: 2
   service:
     type: NodePort
     externalTrafficPolicy: Cluster
@@ -7,3 +8,11 @@ nginx:
         listenerPort: 80
       - port: 30443
         listenerPort: 443
+  pod:
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: gateway-nginx

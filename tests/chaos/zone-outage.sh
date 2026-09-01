@@ -3,8 +3,8 @@ set -euo pipefail
 # shellcheck source=tests/chaos/lib.sh
 source "$(dirname "$0")/lib.sh"
 
-# zone-a holds the host port mapping; kube-proxy keeps forwarding on a
-# drained node, so any zone works. Default to zone-b for a clean read.
+# On kind the host ports are mapped on the zone-a node only (see README, Architecture),
+# so draining zone-a would take the entry point down with it. Default to zone-b.
 ZONE="${1:-zone-b}"
 mapfile -t NODES < <(kubectl get nodes -l "topology.kubernetes.io/zone=$ZONE" -o name)
 [[ ${#NODES[@]} -gt 0 ]] || die "no nodes in $ZONE"
