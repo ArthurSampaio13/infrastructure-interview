@@ -37,7 +37,7 @@ Posts API deployment for the infrastructure interview challenge
 | networkPolicy.monitoringNamespace | string | `"monitoring"` | Namespace where Prometheus runs |
 | networkPolicy.mysql | object | `{"namespace":"mysql","port":6446}` | Namespace and port of the MySQL router |
 | podDisruptionBudget.enabled | bool | `true` | Enable the PodDisruptionBudget |
-| podDisruptionBudget.minAvailable | int | `2` | Minimum available pods during disruptions |
+| podDisruptionBudget.maxUnavailable | int | `1` | Pods that may be evicted at once by voluntary disruption, at any replica count |
 | replicaCount | int | `3` | Number of replicas when autoscaling is disabled |
 | resources | object | `{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | route.enabled | bool | `true` | Create an HTTPRoute |

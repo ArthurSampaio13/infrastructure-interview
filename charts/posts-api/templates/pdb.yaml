@@ -5,7 +5,8 @@ metadata:
   name: {{ .Release.Name }}
   labels: {{- include "posts-api.labels" . | nindent 4 }}
 spec:
-  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels: {{- include "posts-api.podSelectorLabels" . | nindent 6 }}
 {{- end }}

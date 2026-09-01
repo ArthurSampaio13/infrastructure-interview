@@ -10,8 +10,8 @@ spec:
       rules:
         - alert: PostsApiHighErrorRate
           expr: |
-            sum(rate(http_requests_total{status=~"5.."}[5m]))
-              / sum(rate(http_requests_total[5m])) > 0.01
+            sum(rate(http_requests_total{namespace="{{ .Release.Namespace }}",status=~"5.."}[5m]))
+              / sum(rate(http_requests_total{namespace="{{ .Release.Namespace }}"}[5m])) > 0.01
           for: 5m
           labels:
             severity: critical
@@ -20,7 +20,7 @@ spec:
         - alert: PostsApiHighLatency
           expr: |
             histogram_quantile(0.95,
-              sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+              sum(rate(http_request_duration_seconds_bucket{namespace="{{ .Release.Namespace }}"}[5m])) by (le)) > 0.5
           for: 5m
           labels:
             severity: warning
@@ -28,11 +28,10 @@ spec:
             summary: posts-api p95 latency above 500ms
         - alert: PostsApiReplicasBelowPDB
           expr: |
-            kube_deployment_status_replicas_ready{deployment="{{ .Release.Name }}"}
-              < {{ .Values.podDisruptionBudget.minAvailable }}
+            kube_poddisruptionbudget_status_pod_disruptions_allowed{namespace="{{ .Release.Namespace }}",poddisruptionbudget="{{ .Release.Name }}"} == 0
           for: 2m
           labels:
             severity: critical
           annotations:
-            summary: posts-api ready replicas below the disruption budget
+            summary: posts-api has no voluntary disruption headroom left
 {{- end }}

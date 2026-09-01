@@ -51,8 +51,8 @@ autoscaling:
 podDisruptionBudget:
   # -- Enable the PodDisruptionBudget
   enabled: true
-  # -- Minimum available pods during disruptions
-  minAvailable: 2
+  # -- Pods that may be evicted at once by voluntary disruption, at any replica count
+  maxUnavailable: 1
 
 networkPolicy:
   # -- Enable the NetworkPolicy
