@@ -27,6 +27,8 @@ spec:
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels: {{- include "posts-api.podSelectorLabels" . | nindent 14 }}
+          matchLabelKeys:
+            - pod-template-hash
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
