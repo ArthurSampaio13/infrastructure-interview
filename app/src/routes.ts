@@ -9,6 +9,11 @@ const postSchema = z.object({
   categories: z.array(z.object({ name: z.string().min(1).max(255) })).optional(),
 });
 
+const listSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 const wrap = (fn: Handler) => (req: Request, res: Response, next: NextFunction) =>
   fn(req, res).catch(next);
@@ -19,8 +24,22 @@ export const router = Router();
 
 router.get(
   "/posts",
-  wrap(async (_req, res) => {
-    res.json(await repo().find({ relations: { categories: true } }));
+  wrap(async (req, res) => {
+    const query = listSchema.safeParse(req.query);
+    if (!query.success) {
+      return res
+        .status(400)
+        .json({ error: "invalid query", details: query.error.flatten().fieldErrors });
+    }
+    const { limit, offset } = query.data;
+    res.json(
+      await repo().find({
+        relations: { categories: true },
+        order: { id: "DESC" },
+        take: limit,
+        skip: offset,
+      }),
+    );
   }),
 );
 

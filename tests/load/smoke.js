@@ -21,13 +21,19 @@ export default function () {
   check(created, { "create returns 201": (r) => r.status === 201 });
   const id = created.json("id");
 
-  check(http.get(`${BASE}/posts`), {
+  check(http.get(`${BASE}/posts?limit=5`), {
     "list returns 200": (r) => r.status === 200,
+    "list is capped at 5": (r) => r.json().length <= 5,
     "list contains created post": (r) => r.json().some((p) => p.id === id),
   });
+  check(http.get(`${BASE}/posts?limit=0`), { "bad limit returns 400": (r) => r.status === 400 });
   check(http.get(`${BASE}/posts/${id}`), { "get by id returns 200": (r) => r.status === 200 });
+  check(http.get(`${BASE}/posts/abc`), { "non-numeric id returns 400": (r) => r.status === 400 });
   check(http.get(`${BASE}/posts/999999`), { "unknown id returns 404": (r) => r.status === 404 });
   check(http.post(`${BASE}/posts`, "{}", { headers }), {
     "invalid body returns 400": (r) => r.status === 400,
+  });
+  check(http.post(`${BASE}/posts`, "{not json", { headers }), {
+    "malformed json returns 400": (r) => r.status === 400,
   });
 }
