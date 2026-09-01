@@ -23,22 +23,29 @@ The kind cluster has one control-plane node and three workers, each labelled as 
 different `topology.kubernetes.io/zone` (`zone-a`, `zone-b`, `zone-c`). Host ports 80
 and 443 map to nodePorts 30080/30443 on the `zone-a` worker, so a request into the
 cluster lands on that node's kube-proxy and gets forwarded no matter which zone
-answers it.
+answers it. The mapping is a kind constraint: a host port can be bound once, so on this
+cluster losing `zone-a` also loses the entry point. In a cloud the load balancer in front
+of the nodes spans the zones and the rest of the setup is unchanged. The chaos scenarios
+drain `zone-b` by default for this reason.
 
 Traffic enters through a Gateway API `Gateway` (`gateway/gateway`) served by NGINX
-Gateway Fabric. The HTTP listener only redirects to HTTPS; the HTTPS listener
+Gateway Fabric. The nginx data plane runs two replicas spread across zones with a
+PodDisruptionBudget of `maxUnavailable: 1`, so a node drain never takes both. The HTTP listener only redirects to HTTPS; the HTTPS listener
 terminates TLS for `*.local.test` using a certificate issued by a local CA that
 cert-manager creates on cluster bootstrap: a self-signed root, then a CA certificate,
 then a `ClusterIssuer` backed by that CA.
 
 The app runs as a Deployment with 3 replicas, spread across zones with a
 `topologySpreadConstraint` (`maxSkew: 1`, `whenUnsatisfiable: DoNotSchedule`) and a
-preferred pod anti-affinity by hostname. A PodDisruptionBudget keeps at least 2
-replicas available during voluntary disruption. A HorizontalPodAutoscaler scales on
-CPU between 3 and 10 replicas in the chart defaults; the local values file caps
-`maxReplicas` at 6 to fit an 8 GB host. A NetworkPolicy restricts the pod to traffic
-from the Gateway namespace, the monitoring namespace, and itself, and only allows
-egress to the MySQL router, DNS, and itself.
+preferred pod anti-affinity by hostname. A PodDisruptionBudget allows one voluntary
+eviction at a time (`maxUnavailable: 1`), which holds at 3 replicas and still holds when
+the HPA is at 6; `unhealthyPodEvictionPolicy: AlwaysAllow` keeps a crash-looping pod
+from blocking node maintenance. A HorizontalPodAutoscaler scales on CPU between 3 and
+10 replicas in the chart defaults; the local values file caps `maxReplicas` at 6 to fit
+an 8 GB host. A NetworkPolicy allows ingress only from the Gateway namespace (port
+3000), the monitoring namespace (port 9464) and the app's own namespace, and egress only
+to the MySQL router, DNS, and itself. kind's default CNI, kindnet, accepts the policy but
+does not enforce it; see [Design decisions](#design-decisions).
 
 MySQL is an InnoDB Cluster managed by the official MySQL Operator: three server
 instances, one per zone via the same topology spread constraint, and two MySQL
@@ -77,8 +84,9 @@ drop each entry.
   `pre-commit install`). Every tool version used here, Node, OpenTofu, Terragrunt,
   Helm, kind, kubectl, k6, and the linters used in CI, is pinned in `mise.toml`.
 - At least 8 GB of RAM. The local Helm values (autoscaling cap, Prometheus retention,
-  single-binary Loki) are sized for a 7.6 GB host; more headroom just means fewer
-  scheduling squeezes under load or chaos tests.
+  single-binary Loki) are sized for a 7.6 GB host, and that host runs close to its
+  limit: the three MySQL servers alone use about 750 MiB each. More headroom just means
+  fewer scheduling squeezes under load or chaos tests.
 - inotify limits high enough for kind and kube-proxy. The Linux/WSL2 default of 128
   is too low, and kind fails with "too many open files". Set:
 
@@ -143,6 +151,18 @@ Gateway API is where routing configuration is headed, and NGF is a maintained
 implementation of it. Using `HTTPRoute` from the chart also means the app does not
 need ingress-controller-specific annotations.
 
+#### NetworkPolicy declared, kindnet kept
+
+kind's default CNI, kindnet, does not implement NetworkPolicy: the API server accepts
+the object and nothing enforces it. Running Cilium instead does enforce it, and a
+version of this repo did; its four agents added about 600 MiB of resident memory to a
+host that was already near its limit, and the chaos scenarios started failing on memory
+pressure rather than on anything they were meant to test. The policy stays in the chart
+because it costs nothing here and is enforced on any cluster whose CNI supports it (GKE
+Dataplane V2, Calico, Cilium); the local cluster keeps kindnet. To check enforcement on
+such a cluster, run a curl pod in `default` against `posts-api.posts-api:3000` and
+expect it to fail, then one in `gateway` and expect HTTP 200.
+
 #### cert-manager with a local CA, not an ACME issuer
 
 There is no public DNS record to prove ownership of on a kind cluster, so a local CA
@@ -190,9 +210,11 @@ size and the first thing to revisit at a larger one.
 
 #### What was left out on purpose
 
-Authentication, pagination, rate limiting, and a unit test suite are not in `app/`.
-None of them change how the infrastructure around the app has to behave, and the
-brief for this exercise is the infrastructure, not the API. Correctness is instead
+Authentication, rate limiting, and a unit test suite are not in `app/`. None of them
+change how the infrastructure around the app has to behave, and the brief for this
+exercise is the infrastructure, not the API. Pagination is in: an unbounded list
+endpoint is an availability problem. `GET /posts` returns at most 200 rows per call
+(`limit`, `offset`, newest first). Correctness is instead
 covered end to end: the k6 smoke test exercises every route and every documented
 error path, and the chaos scenarios exercise the app under real failures. There is
 also no cloud environment; everything here runs on a local kind cluster, and the
@@ -201,9 +223,10 @@ obviously an ACME issuer instead of a local CA.
 
 ## Testing and chaos scenarios
 
-`tests/load/smoke.js` is a functional check: it creates a post, lists posts, reads
-the created post by id, and checks the documented error responses (404 on an unknown
-id, 400 on an invalid body). `make test` runs it with 1 VU and 1 iteration.
+`tests/load/smoke.js` is a functional check: it creates a post, lists posts with
+`?limit=5`, reads the created post by id, and checks the documented error responses
+(400 on a bad `limit`, 400 on a non-numeric id, 404 on an unknown id, 400 on an
+invalid body, 400 on malformed JSON). `make test` runs it with 1 VU and 1 iteration.
 
 `tests/load/load.js` is a load test: it seeds one post, then runs a mix of 80% reads
 against that post and 20% writes, ramping to `VUS` virtual users (default 20, set via
@@ -223,7 +246,7 @@ code.
 | Rolling upgrade     | `rolling-upgrade.sh`          | Restarts the Deployment (`kubectl rollout restart`) under load.          | The rollout completes with no SLO violation, the same effect as a `helm upgrade` to a new image tag. |
 | Random pod kill     | `pod-kill.sh`                 | Deletes a random `posts-api` pod, eight times, ten seconds apart.        | Kubernetes reschedules each pod; the SLO holds throughout.                                            |
 
-Latest full run: 4/4 scenarios passed, with p95 latency of 91ms, 146ms, 159ms, and
+Latest full run (2026-08-31): 4/4 scenarios passed, with p95 latency of 91ms, 146ms, 159ms, and
 179ms and an error rate of 0%, 0.42%, 0%, and 0% respectively, in the order above.
 
 ## Operations
@@ -231,9 +254,9 @@ Latest full run: 4/4 scenarios passed, with p95 latency of 91ms, 146ms, 159ms, a
 #### Node maintenance
 
 `make drain NODE=<name>` runs `kubectl drain` with `--ignore-daemonsets
---delete-emptydir-data`, which respects the PodDisruptionBudget: if draining the
-node would take `posts-api` below `minAvailable: 2`, the drain blocks instead of
-evicting. Run `kubectl uncordon <name>` once maintenance is done.
+--delete-emptydir-data`, which respects the PodDisruptionBudget: if another
+`posts-api` pod is already unavailable (`maxUnavailable: 1`), the drain blocks instead
+of evicting. Run `kubectl uncordon <name>` once maintenance is done.
 
 #### MySQL failover
 
@@ -243,6 +266,11 @@ intervention needed. This is what the "MySQL primary kill" chaos scenario checks
 
 The MySQL Routers restart when the cluster loses quorum, which is what the chaos
 scenarios provoke; they recover on their own once the cluster is ONLINE again.
+
+The operator does not roll changes to `podSpec` resources or `mycnf` onto an existing
+InnoDB Cluster (its log reports `sts_changed=False`). A fresh `make up` gets them; on a
+running cluster, patch the `mysql` StatefulSet template and let it roll one instance at
+a time.
 
 #### Recovering from a full outage
 
@@ -265,7 +293,7 @@ The chart ships three `PrometheusRule` alerts, visible in Alertmanager and Grafa
 | ------------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | `PostsApiHighErrorRate`        | 5xx rate over 1% of requests for 5 minutes.                        | Recent deploys or migrations; app logs in Loki for the failing route.  |
 | `PostsApiHighLatency`          | p95 request latency over 500ms for 5 minutes.                      | MySQL router/InnoDB Cluster health; whether the HPA is scaling; node CPU. |
-| `PostsApiReplicasBelowPDB`     | Ready replicas below the PDB `minAvailable` for 2 minutes.         | `kubectl get pods -n posts-api`, node status per zone, recent rollout status. |
+| `PostsApiReplicasBelowPDB`     | The PDB reports zero allowed disruptions for 2 minutes.            | `kubectl get pdb,pods -n posts-api`, node status per zone, recent rollout status. |
 
 The alert thresholds are deliberately looser than the k6 load-test SLO (p95 <300ms).
 The SLO is what the chaos scripts assert automatically during a fault; the alerts
@@ -289,13 +317,13 @@ if anything fails.
 
 `release.yaml` runs on any `v*` tag. It builds and pushes a multi-arch image to
 `docker.io/skizay/posts-api` (tagged with the version and `latest`) and
-`docker.io/skizay/posts-api-private` (tagged with the version only), signs the
-public image with cosign in keyless mode, packages the Helm chart and pushes it as
+`docker.io/skizay/posts-api-private` (tagged with the version only), scans the
+pushed image with Trivy, signs it by digest with cosign in keyless mode, packages the Helm chart and pushes it as
 an OCI artifact to `oci://ghcr.io/arthursampaio13/charts` (a separate registry path,
 so the chart and the image never compete for the same tag), and creates a GitHub Release
 with generated notes. It fails early if `Chart.yaml`'s version does not match the
 tag, so the chart and the image never disagree about which version they are; the
-chart is at `0.2.1`, so the next release tag is `v0.2.1`. It needs the
+chart is at `0.3.0`, so the next release tag is `v0.3.0`. It needs the
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repo secrets. Releases are tagged on
 `main`, which stays a rebase of `develop`.
 
