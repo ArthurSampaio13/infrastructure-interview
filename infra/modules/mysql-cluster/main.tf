@@ -80,7 +80,18 @@ resource "kubectl_manifest" "innodb_cluster" {
         resources:
           requests:
             storage: 2Gi
+      mycnf: |
+        [mysqld]
+        loose_group_replication_message_cache_size=128M
       podSpec:
+        containers:
+          - name: mysql
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                memory: 1536Mi
         topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
