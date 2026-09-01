@@ -295,7 +295,7 @@ an OCI artifact to `oci://ghcr.io/arthursampaio13/charts` (a separate registry p
 so the chart and the image never compete for the same tag), and creates a GitHub Release
 with generated notes. It fails early if `Chart.yaml`'s version does not match the
 tag, so the chart and the image never disagree about which version they are; the
-chart is at `0.2.0`, so the first release tag is `v0.2.0`. It needs the
+chart is at `0.2.1`, so the next release tag is `v0.2.1`. It needs the
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repo secrets. Releases are tagged on
 `main`, which stays a rebase of `develop`.
 
@@ -306,7 +306,7 @@ pull secret from a Docker Hub token:
 
 ```bash
 DOCKERHUB_USERNAME=<user> DOCKERHUB_TOKEN=<token> scripts/registry/create-pull-secret.sh
-make deploy REGISTRY=private TAG=0.2.0
+make deploy REGISTRY=private TAG=0.2.1
 ```
 
 The tag is explicit because `release.yaml` only ever pushes released version tags to
