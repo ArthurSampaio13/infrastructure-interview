@@ -75,6 +75,14 @@ resource "kubectl_manifest" "innodb_cluster" {
                   memory: 128Mi
                 limits:
                   memory: 256Mi
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  mysql.oracle.com/cluster: mysql
+                  component: mysqlrouter
       datadirVolumeClaimTemplate:
         accessModes: ["ReadWriteOnce"]
         resources:
