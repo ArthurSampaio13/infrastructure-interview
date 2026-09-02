@@ -1,3 +1,0 @@
-# Values shared by every environment. Environment files override.
-autoscaling:
-  enabled: true
