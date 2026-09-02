@@ -38,5 +38,5 @@ spec:
               drop: ["ALL"]
           envFrom:
             - secretRef:
-                name: {{ .Values.dbSecretName }}
+                name: {{ .Values.migration.dbSecretName }}
 {{- end }}

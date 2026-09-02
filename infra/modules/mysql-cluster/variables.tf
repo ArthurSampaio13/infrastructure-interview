@@ -22,3 +22,8 @@ variable "db_user" {
   description = "Application database user"
   type        = string
 }
+
+variable "db_migration_user" {
+  description = "Database user that runs schema migrations (DDL); the application user only gets DML"
+  type        = string
+}

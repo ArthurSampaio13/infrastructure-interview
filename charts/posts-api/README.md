@@ -22,7 +22,7 @@ Posts API deployment for the infrastructure interview challenge
 | autoscaling.maxReplicas | int | `10` | Maximum replicas |
 | autoscaling.minReplicas | int | `3` | Minimum replicas |
 | autoscaling.targetCPUUtilizationPercentage | int | `70` | Target CPU utilization percentage |
-| dbSecretName | string | `"posts-api-db"` | Name of the Secret holding DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME |
+| dbSecretName | string | `"posts-api-db"` | Name of the Secret holding DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME for the running app (DML only) |
 | env.logLevel | string | `"info"` | pino log level |
 | env.metricsPort | int | `9464` | Port for health and metrics endpoints |
 | env.port | int | `3000` | HTTP port the API listens on |
@@ -31,6 +31,7 @@ Posts API deployment for the infrastructure interview challenge
 | image.tag | string | `""` | Image tag; defaults to the chart appVersion |
 | imagePullSecrets | list | `[]` | Pull secrets for private registries, list of names |
 | metrics.enabled | bool | `true` | Create ServiceMonitor and PrometheusRule (requires the Prometheus operator CRDs) |
+| migration.dbSecretName | string | `"posts-api-db-migrate"` | Secret with the same keys as dbSecretName but for the migration user, which holds DDL grants |
 | migration.enabled | bool | `true` | Run migrations as a pre-install/pre-upgrade hook job |
 | networkPolicy.enabled | bool | `true` | Enable the NetworkPolicy |
 | networkPolicy.gatewayNamespace | string | `"gateway"` | Namespace where the Gateway data plane runs |

@@ -33,15 +33,19 @@ No modules.
 | [kubernetes_namespace.mysql](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace) | resource |
 | [kubernetes_secret.app_db](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
 | [kubernetes_secret.app_user](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
+| [kubernetes_secret.migration_db](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
+| [kubernetes_secret.migration_user](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
 | [kubernetes_secret.root](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
 | [null_resource.wait_online](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [random_password.app](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
+| [random_password.migration](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [random_password.root](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_db_migration_user"></a> [db\_migration\_user](#input\_db\_migration\_user) | Database user that runs schema migrations (DDL); the application user only gets DML | `string` | n/a | yes |
 | <a name="input_db_name"></a> [db\_name](#input\_db\_name) | Application database name | `string` | n/a | yes |
 | <a name="input_db_user"></a> [db\_user](#input\_db\_user) | Application database user | `string` | n/a | yes |
 | <a name="input_instances"></a> [instances](#input\_instances) | MySQL server instances | `number` | n/a | yes |

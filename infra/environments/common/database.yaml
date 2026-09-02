@@ -2,3 +2,4 @@ instances: 3
 router_instances: 2
 db_name: posts
 db_user: posts
+db_migration_user: posts_migrate

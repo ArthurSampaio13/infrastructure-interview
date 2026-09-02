@@ -12,7 +12,7 @@ image:
 # -- Pull secrets for private registries, list of names
 imagePullSecrets: []
 
-# -- Name of the Secret holding DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+# -- Name of the Secret holding DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME for the running app (DML only)
 dbSecretName: posts-api-db
 
 env:
@@ -37,6 +37,8 @@ route:
 migration:
   # -- Run migrations as a pre-install/pre-upgrade hook job
   enabled: true
+  # -- Secret with the same keys as dbSecretName but for the migration user, which holds DDL grants
+  dbSecretName: posts-api-db-migrate
 
 autoscaling:
   # -- Enable the HorizontalPodAutoscaler

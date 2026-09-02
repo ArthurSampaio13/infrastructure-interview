@@ -31,6 +31,11 @@ resource "random_password" "app" {
   special = false
 }
 
+resource "random_password" "migration" {
+  length  = 24
+  special = false
+}
+
 resource "kubernetes_secret" "root" {
   metadata {
     name      = "mysql-root"
@@ -50,6 +55,16 @@ resource "kubernetes_secret" "app_user" {
   }
   data = {
     password = random_password.app.result
+  }
+}
+
+resource "kubernetes_secret" "migration_user" {
+  metadata {
+    name      = "posts-migration-user"
+    namespace = kubernetes_namespace.mysql.metadata[0].name
+  }
+  data = {
+    password = random_password.migration.result
   }
 }
 
@@ -170,11 +185,25 @@ resource "kubernetes_job" "app_user" {
               }
             }
           }
+          env {
+            name = "MIGRATION_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.migration_user.metadata[0].name
+                key  = "password"
+              }
+            }
+          }
+          # REVOKE before GRANT so a narrower grant set actually narrows on re-run; GRANT only adds.
           command = ["bash", "-c", <<-EOT
             mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "
               CREATE DATABASE IF NOT EXISTS ${var.db_name};
               CREATE USER IF NOT EXISTS '${var.db_user}'@'%' IDENTIFIED BY '$APP_PASSWORD';
-              GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP, REFERENCES ON ${var.db_name}.* TO '${var.db_user}'@'%';"
+              REVOKE ALL PRIVILEGES, GRANT OPTION FROM '${var.db_user}'@'%';
+              GRANT SELECT, INSERT, UPDATE, DELETE ON ${var.db_name}.* TO '${var.db_user}'@'%';
+              CREATE USER IF NOT EXISTS '${var.db_migration_user}'@'%' IDENTIFIED BY '$MIGRATION_PASSWORD';
+              REVOKE ALL PRIVILEGES, GRANT OPTION FROM '${var.db_migration_user}'@'%';
+              GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP, REFERENCES ON ${var.db_name}.* TO '${var.db_migration_user}'@'%';"
           EOT
           ]
         }
@@ -198,6 +227,21 @@ resource "kubernetes_secret" "app_db" {
     DB_PORT     = "6446"
     DB_USER     = var.db_user
     DB_PASSWORD = random_password.app.result
+    DB_NAME     = var.db_name
+  }
+  depends_on = [kubernetes_job.app_user]
+}
+
+resource "kubernetes_secret" "migration_db" {
+  metadata {
+    name      = "posts-api-db-migrate"
+    namespace = kubernetes_namespace.app.metadata[0].name
+  }
+  data = {
+    DB_HOST     = "mysql.mysql.svc.cluster.local"
+    DB_PORT     = "6446"
+    DB_USER     = var.db_migration_user
+    DB_PASSWORD = random_password.migration.result
     DB_NAME     = var.db_name
   }
   depends_on = [kubernetes_job.app_user]
