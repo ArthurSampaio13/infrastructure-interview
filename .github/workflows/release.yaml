@@ -43,7 +43,9 @@ jobs:
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
-      - run: cosign sign --yes "skizay/posts-api@$DIGEST"
+      - run: |
+          cosign sign --yes "skizay/posts-api@$DIGEST"
+          cosign sign --yes "skizay/posts-api-private@$DIGEST"
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
       - run: |

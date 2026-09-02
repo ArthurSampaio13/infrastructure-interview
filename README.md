@@ -318,7 +318,7 @@ if anything fails.
 `release.yaml` runs on any `v*` tag. It builds and pushes a multi-arch image to
 `docker.io/skizay/posts-api` (tagged with the version and `latest`) and
 `docker.io/skizay/posts-api-private` (tagged with the version only), scans the
-pushed image with Trivy, signs it by digest with cosign in keyless mode, packages the Helm chart and pushes it as
+pushed image with Trivy, signs both repositories by digest with cosign in keyless mode, packages the Helm chart and pushes it as
 an OCI artifact to `oci://ghcr.io/arthursampaio13/charts` (a separate registry path,
 so the chart and the image never compete for the same tag), and creates a GitHub Release
 with generated notes. It fails early if `Chart.yaml`'s version does not match the
