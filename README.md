@@ -251,9 +251,18 @@ code.
 | Rolling upgrade     | `rolling-upgrade.sh`          | Restarts the Deployment (`kubectl rollout restart`) under load.          | The rollout completes with no SLO violation, the same effect as a `helm upgrade` to a new image tag. |
 | Random pod kill     | `pod-kill.sh`                 | Deletes a random `posts-api` pod, eight times, ten seconds apart.        | Kubernetes reschedules each pod; the SLO holds throughout.                                            |
 
-Latest full run (2026-08-31, on v0.2.1): 4/4 scenarios passed, with p95 latency of 91ms,
-146ms, 159ms, and 179ms and an error rate of 0%, 0.42%, 0%, and 0% respectively, in the
-order above. Not yet repeated on 0.3.0.
+Latest full run (2026-08-31, on v0.2.1, 20 VUs): 4/4 scenarios passed, with p95 latency
+of 91ms, 146ms, 159ms, and 179ms and an error rate of 0%, 0.42%, 0%, and 0% respectively,
+in the order above.
+
+On 0.3.0 (2026-09-02, 10 VUs, same 7.6 GB host): zone outage, MySQL primary kill and
+rolling upgrade passed with p95 of 133ms, 152ms and 269ms and error rates of 0%, 0.24%
+and 0%. Random pod kill did not meet the SLO in two attempts. The first failed on errors
+when the host stalled for about 30 seconds, the control plane restarted and the operator
+rolled both MySQL Routers at once, which is not what the scenario injects. The second,
+after 25 minutes of back-to-back scenarios with the host already in swap, held 0.15%
+errors but reached a p95 of 382ms. The four scenarios were run one after the other with
+the scripts in the table, the same sequence `make chaos` runs.
 
 ## Operations
 
