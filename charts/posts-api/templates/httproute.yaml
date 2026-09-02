@@ -10,7 +10,7 @@ spec:
       namespace: {{ .Values.route.parentRef.namespace }}
       sectionName: {{ .Values.route.parentRef.sectionName }}
   hostnames:
-    - {{ .Values.route.hostname }}
+    - {{ required "route.hostname must be set" .Values.route.hostname }}
   rules:
     - backendRefs:
         - name: {{ .Release.Name }}

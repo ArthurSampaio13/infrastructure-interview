@@ -40,9 +40,9 @@ Posts API deployment for the infrastructure interview challenge
 | podDisruptionBudget.enabled | bool | `true` | Enable the PodDisruptionBudget |
 | podDisruptionBudget.maxUnavailable | int | `1` | Pods that may be evicted at once by voluntary disruption, at any replica count |
 | replicaCount | int | `3` | Number of replicas when autoscaling is disabled |
-| resources | object | `{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| resources | object | `{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"250m","memory":"128Mi"}}` | Resource requests and limits |
 | route.enabled | bool | `true` | Create an HTTPRoute |
-| route.hostname | string | `"posts.local.test"` | Public hostname |
+| route.hostname | string | `""` | Public hostname, set per environment |
 | route.parentRef | object | `{"name":"gateway","namespace":"gateway","sectionName":"https"}` | Gateway to attach to |
 
 ----------------------------------------------

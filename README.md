@@ -42,7 +42,10 @@ eviction at a time (`maxUnavailable: 1`), which holds at 3 replicas and still ho
 the HPA is at 6; `unhealthyPodEvictionPolicy: AlwaysAllow` keeps a crash-looping pod
 from blocking node maintenance. A HorizontalPodAutoscaler scales on CPU between 3 and
 10 replicas in the chart defaults; the local values file caps `maxReplicas` at 6 to fit
-an 8 GB host. A NetworkPolicy allows ingress only from the Gateway namespace (port
+an 8 GB host. It scales on CPU because the app is CPU-bound (JSON in, JSON out, a
+single Node.js thread), so CPU is the first thing that saturates and it is the signal
+metrics-server already provides. The 250m request is the number the target percentage
+is measured against; a 100m request would have scaled out at 70m of actual use. A NetworkPolicy allows ingress only from the Gateway namespace (port
 3000), the monitoring namespace (port 9464) and the app's own namespace, and egress only
 to the MySQL router, DNS, and itself. kind's default CNI, kindnet, accepts the policy but
 does not enforce it; see [Design decisions](#design-decisions).
@@ -120,7 +123,7 @@ URLs: `https://posts.local.test` (API) and `https://grafana.local.test` (Grafana
 | ------------------------ | ------------------------------------------------------------------------ |
 | `app/`                   | The posts API: Express, TypeORM, migrations, Dockerfile.                |
 | `charts/posts-api/`      | Helm chart for the app (Deployment, HPA, PDB, NetworkPolicy, alerts, migration hook). |
-| `values/posts-api/`      | Environment values layered on the chart defaults (`common.yaml`, `local.yaml`). |
+| `values/posts-api/`      | Per-environment values layered on the chart defaults (`local.yaml`: hostname, HPA cap). |
 | `infra/modules/`         | OpenTofu modules: `kind-cluster`, `platform-addons`, `mysql-cluster`.   |
 | `infra/units/`           | Terragrunt wiring per module (source, dependencies, inputs).            |
 | `infra/environments/`    | The `local` environment: a Terragrunt stack over the three units.       |

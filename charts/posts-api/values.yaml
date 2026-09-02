@@ -26,8 +26,8 @@ env:
 route:
   # -- Create an HTTPRoute
   enabled: true
-  # -- Public hostname
-  hostname: posts.local.test
+  # -- Public hostname, set per environment
+  hostname: ""
   # -- Gateway to attach to
   parentRef:
     name: gateway
@@ -75,7 +75,7 @@ metrics:
 # -- Resource requests and limits
 resources:
   requests:
-    cpu: 100m
+    cpu: 250m
     memory: 128Mi
   limits:
     cpu: 500m

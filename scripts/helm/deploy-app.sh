@@ -40,7 +40,6 @@ fi
 log "deploying $repo:$TAG"
 helm upgrade --install posts-api charts/posts-api \
   --namespace posts-api \
-  -f values/posts-api/common.yaml \
   -f values/posts-api/local.yaml \
   --set "image.repository=$repo" \
   --set "image.tag=$TAG" \
