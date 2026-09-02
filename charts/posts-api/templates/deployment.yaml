@@ -72,12 +72,15 @@ spec:
               port: metrics
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 3
+          # readyz waits up to 2s on the database, so the probe must outlast that.
           readinessProbe:
             httpGet:
               path: /readyz
               port: metrics
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 2
           lifecycle:
             preStop:

@@ -5,6 +5,8 @@ ENV_DIR := infra/environments/local
 IMAGE ?= skizay/posts-api
 TAG ?= dev
 REGISTRY ?= public
+# Load-test users; sized for an 8 GB host. Raise on bigger machines: VUS=20 make chaos
+export VUS ?= 10
 
 .PHONY: setup up down infra build kind-load deploy test load chaos lint grafana hosts drain
 

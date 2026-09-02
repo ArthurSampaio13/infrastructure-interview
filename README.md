@@ -87,9 +87,11 @@ drop each entry.
   `pre-commit install`). Every tool version used here, Node, OpenTofu, Terragrunt,
   Helm, kind, kubectl, k6, and the linters used in CI, is pinned in `mise.toml`.
 - At least 8 GB of RAM. The local Helm values (autoscaling cap, Prometheus retention,
-  single-binary Loki) are sized for a 7.6 GB host, and that host runs close to its
-  limit: the three MySQL servers alone use about 750 MiB each. More headroom just means
-  fewer scheduling squeezes under load or chaos tests.
+  single-binary Loki) and the load tests (`VUS=10` in the Makefile) are sized for a
+  7.6 GB host, and that host runs close to its limit: the three MySQL servers alone
+  use about 750 MiB each. A zone drain reschedules Prometheus, MySQL and the app at
+  once, and that is where the host runs out first. On a bigger machine, `VUS=20 make
+  chaos` is the load the earlier runs used.
 - inotify limits high enough for kind and kube-proxy. The Linux/WSL2 default of 128
   is too low, and kind fails with "too many open files". Set:
 
@@ -232,9 +234,9 @@ obviously an ACME issuer instead of a local CA.
 invalid body, 400 on malformed JSON). `make test` runs it with 1 VU and 1 iteration.
 
 `tests/load/load.js` is a load test: it seeds one post, then runs a mix of 80% reads
-against that post and 20% writes, ramping to `VUS` virtual users (default 20, set via
-the `VUS` env var) and holding for `DURATION` (default 2m, set via the `DURATION` env
-var). It asserts an error rate under 1% and a p95 latency under 300ms; a failed
+against that post and 20% writes, ramping to `VUS` virtual users (the Makefile sets 10;
+the script alone defaults to 20) and holding for `DURATION` (default 2m, set via the
+`DURATION` env var). It asserts an error rate under 1% and a p95 latency under 300ms; a failed
 threshold makes k6 exit non-zero.
 
 `make chaos` runs four scenarios, in this order. Each one starts the load test in the
