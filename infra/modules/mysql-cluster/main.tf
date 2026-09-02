@@ -146,9 +146,15 @@ resource "kubectl_manifest" "mysql_podmonitor" {
   depends_on = [kubectl_manifest.innodb_cluster]
 }
 
+# ONLINE is reported at quorum (2 of 3), before the operator has created the router
+# account, so the router is what has to be ready before anyone dials port 6446.
 resource "null_resource" "wait_online" {
   provisioner "local-exec" {
-    command = "kubectl --kubeconfig ${var.kubeconfig_path} wait innodbcluster/mysql -n mysql --for=jsonpath='{.status.cluster.status}'=ONLINE --timeout=900s"
+    command = <<-EOT
+      kubectl --kubeconfig ${var.kubeconfig_path} -n mysql wait innodbcluster/mysql --for=jsonpath='{.status.cluster.status}'=ONLINE --timeout=900s &&
+      until kubectl --kubeconfig ${var.kubeconfig_path} -n mysql get deploy mysql-router >/dev/null 2>&1; do sleep 5; done &&
+      kubectl --kubeconfig ${var.kubeconfig_path} -n mysql wait deploy/mysql-router --for=condition=Available --timeout=900s
+    EOT
   }
   depends_on = [kubectl_manifest.innodb_cluster]
 }
