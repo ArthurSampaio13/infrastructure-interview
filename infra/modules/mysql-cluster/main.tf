@@ -200,8 +200,13 @@ resource "kubernetes_job" "app_user" {
               }
             }
           }
+          # The routers restart as members join, so poll the port before the real statements.
           # REVOKE before GRANT so a narrower grant set actually narrows on re-run; GRANT only adds.
           command = ["bash", "-c", <<-EOT
+            for _ in $(seq 1 60); do
+              mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "SELECT 1" >/dev/null 2>&1 && break
+              sleep 5
+            done
             mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "
               CREATE DATABASE IF NOT EXISTS ${var.db_name};
               CREATE USER IF NOT EXISTS '${var.db_user}'@'%' IDENTIFIED BY '$APP_PASSWORD';
