@@ -249,8 +249,9 @@ code.
 | Rolling upgrade     | `rolling-upgrade.sh`          | Restarts the Deployment (`kubectl rollout restart`) under load.          | The rollout completes with no SLO violation, the same effect as a `helm upgrade` to a new image tag. |
 | Random pod kill     | `pod-kill.sh`                 | Deletes a random `posts-api` pod, eight times, ten seconds apart.        | Kubernetes reschedules each pod; the SLO holds throughout.                                            |
 
-Latest full run (2026-08-31): 4/4 scenarios passed, with p95 latency of 91ms, 146ms, 159ms, and
-179ms and an error rate of 0%, 0.42%, 0%, and 0% respectively, in the order above.
+Latest full run (2026-08-31, on v0.2.1): 4/4 scenarios passed, with p95 latency of 91ms,
+146ms, 159ms, and 179ms and an error rate of 0%, 0.42%, 0%, and 0% respectively, in the
+order above. Not yet repeated on 0.3.0.
 
 ## Operations
 
