@@ -10,6 +10,8 @@ metadata:
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
   backoffLimit: 3
+  # Below the deploy script's --timeout 5m so a hung migration fails the release, not the timeout.
+  activeDeadlineSeconds: 240
   template:
     metadata:
       labels: {{- include "posts-api.selectorLabels" . | nindent 8 }}
@@ -36,6 +38,7 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          resources: {{- toYaml .Values.resources | nindent 12 }}
           envFrom:
             - secretRef:
                 name: {{ .Values.migration.dbSecretName }}

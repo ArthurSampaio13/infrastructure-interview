@@ -19,5 +19,7 @@ spec:
       command: ["curl", "-fsS", "http://{{ .Release.Name }}:{{ .Values.env.port }}/posts"]
       securityContext:
         allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
         capabilities:
           drop: ["ALL"]
+      resources: {{- toYaml .Values.resources | nindent 8 }}
