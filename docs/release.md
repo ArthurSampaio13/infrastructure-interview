@@ -13,10 +13,9 @@ jobs.
 | `lint` | `pre-commit run --all-files`, `actionlint` | a pre-commit hook fails or a workflow file is invalid |
 
 Each job has `timeout-minutes: 20`. A `concurrency` group keyed on the ref cancels superseded runs,
-so a second push does not leave the first one burning runners.
+so a second push cancels the first.
 
-`e2e.yaml` is `workflow_dispatch` only. Building a kind cluster and the whole platform on every push
-costs more runner minutes than the check is worth ([cost](design-decisions.md#cost)).
+`e2e.yaml` is `workflow_dispatch` only ([cost](design-decisions.md#cost)).
 
 ## Release
 
@@ -63,14 +62,15 @@ CI scans every image it builds, and the release scans before it pushes. Both run
 build when there is a fix to apply.
 
 A CVE with a fix is an image or dependency update. A CVE with no fix in the base image goes into
-`.trivyignore` with its id, the reason, and the condition for dropping the entry, in the format the
-current entries use. `trivy image posts-api:dev` runs the same scan against a local build.
+`.trivyignore`, in the format the current entries use. Run the CI scan against a local build with
+`trivy image --severity CRITICAL,HIGH --ignore-unfixed skizay/posts-api:dev`.
 
 ## Dependabot
 
 `dependabot.yml` watches npm (`/app`), GitHub Actions, Docker (`/app`) and Terraform
-(`/infra/modules/*`), weekly, grouped into one pull request per ecosystem. Majors are ignored for
-npm and Docker. A major goes in by hand, on its own branch, with `make lint` and `make test`.
+(`/infra/modules/*`), weekly. npm, GitHub Actions and Terraform updates arrive grouped, one pull
+request per ecosystem; Docker base-image bumps arrive one per image. Majors are ignored for npm and
+Docker. A major goes in by hand, on its own branch, with `make lint` and `make test`.
 
 ## What a team would add
 
