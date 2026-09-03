@@ -1,5 +1,5 @@
 grafana:
-  adminPassword: ${grafana_password}
+  adminPassword: "${grafana_password}"
   additionalDataSources:
     - name: Loki
       uid: loki
@@ -16,3 +16,11 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
     retention: 24h
+    # emptyDir loses the metrics on every reschedule, which is what a zone drain causes.
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
