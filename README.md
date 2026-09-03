@@ -10,6 +10,7 @@ on a local kind cluster.
 ## Table of contents
 
 - [About](#about)
+- [Changes to the original app](#changes-to-the-original-app)
 - [Built with](#built-with)
 - [Getting started](#getting-started)
 - [Usage](#usage)
@@ -40,6 +41,28 @@ Grafana, Loki and Alloy cover metrics and logs. The platform is OpenTofu and Ter
 a Helm chart.
 
 See [docs/architecture.md](docs/architecture.md).
+
+## Changes to the original app
+
+The challenge shipped a single-file Express app: TypeORM 0.2 on an end-of-life Node line,
+credentials in a committed `ormconfig.env`, `synchronize: true`, no health checks, and
+`console.log` for logging. The changes below let a platform team run it without reading its code.
+
+| Change | Why | Where |
+| --- | --- | --- |
+| Node 22, TypeScript 5, TypeORM 0.3, `mysql2` | supported runtimes; distroless images ship only those | `app/package.json` |
+| Configuration from environment variables, validated at start | no credentials in the repo; the Kubernetes Secret is the contract | `app/src/config.ts` |
+| Migrations instead of `synchronize` | schema changes are reviewed, run once by a Helm hook, with a DDL-only database user | `app/src/migration/`, `charts/posts-api/templates/job-migrate.yaml` |
+| `/healthz`, `/readyz`, `/metrics` on port 9464 | probes and scraping stay off the public port; readiness checks the database | `app/src/ops.ts` |
+| Graceful shutdown on SIGTERM | in-flight requests finish during a rollout or an eviction | `app/src/index.ts` |
+| JSON logs with a request id | one line per request, searchable in Loki by `request_id` | `app/src/logger.ts`, `app/src/app.ts` |
+| Body validation, 100 kB limit, security headers, central error handler | 400 and 413 for bad input, 500 without a stack trace | `app/src/app.ts`, `app/src/routes.ts` |
+| Pagination on `GET /posts` | the table is never returned whole | `app/src/routes.ts` |
+| `POST /posts` returns 201; the `next` bug fixed | the original returned 200 and never called `next` after a handler | `app/src/routes.ts` |
+
+The API surface is unchanged otherwise. See
+[docs/architecture.md](docs/architecture.md#application) and
+[docs/design-decisions.md](docs/design-decisions.md#app-modernization-node-22-typeorm-03-typescript-5).
 
 ## Built with
 
