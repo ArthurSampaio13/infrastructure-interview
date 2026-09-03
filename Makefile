@@ -30,7 +30,7 @@ kind-load:
 	kind load docker-image $(IMAGE):$(TAG) --name $(CLUSTER)
 
 deploy:
-	scripts/helm/deploy-app.sh --registry $(REGISTRY) --tag $(TAG)
+	scripts/helm/deploy-app.sh --image $(IMAGE) --registry $(REGISTRY) --tag $(TAG)
 
 test:
 	k6 run tests/load/smoke.js
