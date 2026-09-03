@@ -40,7 +40,10 @@ MySQL is a three-instance InnoDB Cluster, one per zone, reached through MySQL Ro
 Grafana, Loki and Alloy cover metrics and logs. The platform is OpenTofu and Terragrunt; the app is
 a Helm chart.
 
-See [docs/architecture.md](docs/architecture.md).
+![Host, kind cluster with three zones, the gateway, app, MySQL and monitoring namespaces, and the provisioning and release tools](docs/architecture.png)
+
+Diagram source: [docs/architecture.drawio](docs/architecture.drawio). See
+[docs/architecture.md](docs/architecture.md).
 
 ## Changes to the original app
 
@@ -153,4 +156,4 @@ or `main`. A `v*` tag scans a build, then pushes a multi-arch image to `docker.i
 | `infra/environments/` | The `local` environment: a Terragrunt stack over the three units. |
 | `scripts/` | Operational scripts (deploy, drain, hosts file, pull secret, Grafana creds). |
 | `tests/` | k6 smoke/load scripts and the chaos scenario scripts. |
-| `docs/` | Architecture, getting started, operations, testing, releases, design decisions. |
+| `docs/` | Architecture (with the diagram and its draw.io source), getting started, operations, testing, releases, design decisions. |

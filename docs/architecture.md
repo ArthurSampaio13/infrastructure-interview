@@ -1,5 +1,8 @@
 # Architecture
 
+The diagram in the [README](../README.md#about) shows every component below. Its source is
+[architecture.drawio](architecture.drawio).
+
 ## Request path
 
 A request arrives on host port 80 or 443, bound to 127.0.0.1 only. kind maps those to nodePorts
