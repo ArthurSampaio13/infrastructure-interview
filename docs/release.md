@@ -36,7 +36,8 @@ The job needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
 the GitHub release use the workflow's own `GITHUB_TOKEN`, and cosign signs with the job's OIDC
 token (`id-token: write`), so there is no signing key to store.
 
-Verify a published signature:
+Verify a published signature. The release signs with cosign 3, which stores the signature as a
+bundle; cosign 2 does not read it and reports no signatures.
 
 ```bash
 cosign verify \

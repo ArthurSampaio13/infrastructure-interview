@@ -54,7 +54,7 @@ See [docs/architecture.md](docs/architecture.md).
 | kube-prometheus-stack / Loki / Alloy | 88.6.1 / 7.3.0 / 1.12.1 | metrics, logs |
 | Node.js / Express / TypeORM | 22 / 4 / 0.3 | the API |
 | k6 | 1.3.0 | smoke, load and chaos tests |
-| Trivy / cosign | 0.69.2 / 2.5.0 | image scan and signature |
+| Trivy / cosign | 0.69.2 / 3.0.6 | image scan and signature |
 
 `mise.toml` and `infra/environments/common/addons.yaml` pin these versions.
 
