@@ -36,4 +36,9 @@ export default function () {
   check(http.post(`${BASE}/posts`, "{not json", { headers }), {
     "malformed json returns 400": (r) => r.status === 400,
   });
+  const big = JSON.stringify({ title: "big", text: "x".repeat(150 * 1024) });
+  check(http.post(`${BASE}/posts`, big, { headers }), {
+    "oversized body returns 413": (r) => r.status === 413,
+    "oversized body is json": (r) => r.headers["Content-Type"].startsWith("application/json"),
+  });
 }
