@@ -10,6 +10,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: release-${{ github.ref }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
@@ -29,19 +31,26 @@ jobs:
           fi
         env:
           VERSION: ${{ steps.version.outputs.version }}
+      # Scan a local single-arch build first; nothing reaches the registry if it fails.
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: app
+          platforms: linux/amd64
+          load: true
+          tags: posts-api:scan
+          cache-to: type=gha,mode=max
+      - run: trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 posts-api:scan
       - id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: app
           platforms: linux/amd64,linux/arm64
           push: true
+          cache-from: type=gha
           tags: |
             skizay/posts-api:${{ steps.version.outputs.version }}
             skizay/posts-api:latest
             skizay/posts-api-private:${{ steps.version.outputs.version }}
-      - run: trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 "skizay/posts-api@$DIGEST"
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - run: |
           cosign sign --yes "skizay/posts-api@$DIGEST"
