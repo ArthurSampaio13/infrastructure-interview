@@ -214,6 +214,7 @@ resource "kubernetes_job" "app_user" {
           # ALTER USER so a rotated password reaches MySQL; CREATE USER alone keeps the old one.
           # REVOKE before GRANT so a narrower grant set actually narrows on re-run; GRANT only adds.
           command = ["bash", "-c", <<-EOT
+            # The routers restart as members join, so poll the port before the real statements.
             for _ in $(seq 1 60); do
               mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "SELECT 1" >/dev/null 2>&1 && break
               sleep 5
