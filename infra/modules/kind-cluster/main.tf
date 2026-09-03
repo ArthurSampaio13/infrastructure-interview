@@ -10,6 +10,7 @@ locals {
 
 resource "kind_cluster" "this" {
   name           = var.cluster_name
+  node_image     = var.node_image
   wait_for_ready = true
 
   kind_config {
@@ -27,10 +28,12 @@ resource "kind_cluster" "this" {
       extra_port_mappings {
         container_port = 30080
         host_port      = 80
+        listen_address = "127.0.0.1"
       }
       extra_port_mappings {
         container_port = 30443
         host_port      = 443
+        listen_address = "127.0.0.1"
       }
     }
 

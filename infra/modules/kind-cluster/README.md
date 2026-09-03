@@ -31,6 +31,7 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | kind cluster name | `string` | n/a | yes |
 | <a name="input_kubeconfig_path"></a> [kubeconfig\_path](#input\_kubeconfig\_path) | Where to write the kubeconfig | `string` | n/a | yes |
+| <a name="input_node_image"></a> [node\_image](#input\_node\_image) | kindest/node image, tag and digest, matching the kubectl version in mise.toml | `string` | n/a | yes |
 
 ## Outputs
 
