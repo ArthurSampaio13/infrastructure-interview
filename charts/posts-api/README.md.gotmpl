@@ -1,0 +1,33 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+## Prerequisites
+
+- Kubernetes {{ .KubeVersion }}.
+- Gateway API CRDs and a `Gateway` to attach to (`route.parentRef`).
+- Prometheus Operator CRDs when `metrics.enabled` is true.
+- Two Secrets in the release namespace, each with `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`
+  and `DB_NAME`: `dbSecretName` for the app (DML grants) and `migration.dbSecretName` for the
+  migrate hook (DDL grants). `infra/modules/mysql-cluster` creates both.
+
+## Install
+
+```bash
+helm upgrade --install posts-api charts/posts-api -n posts-api --set route.hostname=posts.example.test
+```
+
+`route.hostname` has no default and the release fails without it.
+
+## Upgrades
+
+The migrate Job runs as a `pre-upgrade` hook, before the Deployment changes. A failed Job stays in
+the namespace for inspection and the release rolls back. A Job still running at
+`activeDeadlineSeconds` (240s) fails the same way.
+
+{{ template "chart.maintainersSection" . }}
+{{ template "chart.sourcesSection" . }}
+{{ template "chart.requirementsSection" . }}
+{{ template "chart.valuesSection" . }}
