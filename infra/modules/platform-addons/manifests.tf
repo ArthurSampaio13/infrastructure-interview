@@ -72,7 +72,12 @@ resource "kubectl_manifest" "gateway" {
               - name: gateway-tls
           allowedRoutes:
             namespaces:
-              from: All
+              from: Selector
+              selector:
+                matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: In
+                    values: [posts-api, monitoring]
   EOT
   depends_on = [helm_release.ngf, kubectl_manifest.issuer_local_ca, kubernetes_namespace.gateway]
 }
