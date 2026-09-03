@@ -54,26 +54,26 @@ the code here and resolves the same providers from the same registry.
 ## Distroless, non-root, cosign-signed image
 
 The runtime image is distroless, runs as a non-root user, and is signed with cosign on release.
-No shell, no package manager and no root user shrinks what an attacker gets out of a container
-escape or a dependency compromise. The signature gives anyone pulling the image a way to verify
-it came from this pipeline.
+An image without a shell or a package manager, running unprivileged, limits what an attacker
+gets out of a container escape or a dependency compromise. The signature gives anyone pulling the
+image a way to verify it came from this pipeline.
 
 ## App modernization (Node 22, TypeORM 0.3, TypeScript 5)
 
 The app moved to current majors of Node, TypeORM and TypeScript. The original targeted an EOL
-Node line and an old TypeORM major with a callback-heavy API. Current majors also unblock
-distroless images, which only ship supported runtimes.
+Node line and an old TypeORM major with a callback-heavy API. Current majors unblock distroless
+images, which only ship supported runtimes. The move also fixed the create response:
+`POST /posts` returns 201 where the original returned 200.
 
 ## Cost
 
-Nothing here bills, and the same choices are what keep a real bill down. `e2e.yaml` is
+Nothing here bills, but the same choices keep a real bill down. `e2e.yaml` is
 `workflow_dispatch` only, so a kind cluster is not built on every push and the expensive job runs
 when someone asks for it. Prometheus keeps 24h of data, which is enough to read a chaos run and
 small enough to fit the single node it runs on. Every workload declares requests and limits, so
 the scheduler packs nodes instead of guessing, and the HPA is capped (`maxReplicas` 6 locally) so
 a traffic spike cannot scale the bill without a ceiling. Observability runs as a single-node
-stack with a single-binary Loki rather than a distributed one, which is the right trade at this
-size and the first thing to revisit at a larger one.
+stack with a single-binary Loki rather than a distributed one.
 
 ## What was left out on purpose
 
@@ -81,5 +81,6 @@ Authentication, rate limiting and a unit test suite are not in `app/`. None of t
 the infrastructure around the app has to behave, and the brief for this exercise is the
 infrastructure, not the API. Pagination is in, because an unbounded list endpoint is an
 availability problem. Tests cover correctness end to end instead: the k6 smoke test hits every
-route and every documented error path, and the chaos scenarios run the app under real failures. There is also no cloud environment; the decisions above call out where a cloud
-deployment would differ, most obviously an ACME issuer instead of a local CA.
+route and every documented error path, and the chaos scenarios run the app under real failures.
+There is also no cloud environment; the decisions above call out where a cloud deployment would
+differ, most obviously an ACME issuer instead of a local CA.

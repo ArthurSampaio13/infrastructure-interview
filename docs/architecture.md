@@ -7,12 +7,15 @@ A request arrives on host port 80 or 443, bound to 127.0.0.1 only. kind maps tho
 forwarded to whichever zone answers it.
 
 Both nodePorts belong to the NGINX Gateway Fabric data plane Service, which serves the Gateway
-API `Gateway` (`gateway/gateway`). The HTTP listener accepts `HTTPRoute`s from its own namespace only and
-redirects them to HTTPS. The HTTPS listener terminates TLS for `*.local.test` and accepts `HTTPRoute`s
-from the `posts-api` and `monitoring` namespaces. The certificate comes from a local CA that
-cert-manager builds on cluster bootstrap: a self-signed root, then a CA certificate, then a
-`ClusterIssuer` backed by that CA. The nginx data plane runs two replicas spread across zones
-with a PodDisruptionBudget of `maxUnavailable: 1`, so a node drain never takes both.
+API `Gateway` (`gateway/gateway`). That data plane runs two replicas spread across zones with a
+PodDisruptionBudget of `maxUnavailable: 1`, so a node drain never takes both.
+
+The HTTP listener accepts `HTTPRoute`s from its own namespace only and redirects them to HTTPS.
+The HTTPS listener terminates TLS for `*.local.test` and accepts `HTTPRoute`s from the
+`posts-api` and `monitoring` namespaces.
+
+The certificate comes from a local CA that cert-manager builds on cluster bootstrap: a
+self-signed root, then a CA certificate, then a `ClusterIssuer` backed by that CA.
 
 The diagram in the [README](../README.md#about) shows the same path.
 
@@ -23,9 +26,9 @@ each labelled a different `topology.kubernetes.io/zone` (`zone-a`, `zone-b`, `zo
 requires `kubeVersion >=1.30.0-0`.
 
 A host port can be bound once, so the entry point sits on the `zone-a` worker alone and losing
-that zone on this cluster also loses the entry point. The chaos scenarios drain `zone-b` by default
-for that reason. In a cloud the load balancer in front of the nodes spans the zones and the rest
-of the setup is unchanged.
+that zone on this cluster also loses the entry point. The chaos scenarios drain `zone-b` by
+default for that reason. In a cloud the load balancer in front of the nodes spans the zones and
+the rest of the setup is unchanged.
 
 ## Application
 
@@ -63,8 +66,8 @@ itself. The local CNI, kindnet, does not enforce it
 ([why](design-decisions.md#networkpolicy-declared-kindnet-kept)).
 
 The app reuses an inbound `x-request-id` only when it matches `^[\w.-]{1,128}$`, and generates a
-UUID otherwise. The error handler logs body-parser failures and answers them like any other
-error.
+UUID otherwise. Malformed JSON returns 400 from a dedicated branch. A body over the 100 kB limit
+returns 413 through the generic handler, which logs it at warn.
 
 ## Database
 
