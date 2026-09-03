@@ -7,8 +7,7 @@ which respects the PodDisruptionBudget. If another `posts-api` pod is already un
 (`maxUnavailable: 1`), the drain blocks instead of evicting. Run `kubectl uncordon <name>` when
 the maintenance is done.
 
-Draining a zone can also move the Gateway data plane, and while its replacement pod starts the
-entry point is down. See [testing](testing.md#how-to-read-a-failure).
+A zone drain can also take the entry point down. See [testing](testing.md#results).
 
 ## MySQL failover
 

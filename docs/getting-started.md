@@ -22,7 +22,7 @@
 
 `make up` runs four targets in order.
 
-| Step | Command | What it creates | Time |
+| Step | Command | What it creates | Time on a 7.6 GB host |
 | --- | --- | --- | --- |
 | `make infra` | `terragrunt stack run apply` | kind cluster (1 control plane, 3 workers labelled zone-a/b/c); Gateway API CRDs, NGINX Gateway Fabric, cert-manager with a local CA, kube-prometheus-stack, Loki, Alloy, metrics-server; MySQL Operator and a 3-instance InnoDB Cluster with 2 routers; the `posts` database and its two users | 12 to 20 min, most of it the InnoDB Cluster reaching ONLINE |
 | `make build` | `docker build` | `skizay/posts-api:dev` | 1 min |
@@ -35,7 +35,7 @@ the table split that run and are approximate.
 Two inputs replace the cluster instead of updating it: `node_image` in
 `infra/environments/common/cluster.yaml`, and the `extra_port_mappings` blocks in
 `infra/modules/kind-cluster/main.tf`. The kind provider cannot change either in place, so a plan
-that touches them destroys the cluster and everything on it, and the next apply takes the full
+that touches them destroys the cluster and everything on it. The next apply then takes the full
 17 minutes.
 
 ## After make up

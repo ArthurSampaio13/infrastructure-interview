@@ -56,25 +56,28 @@ back-to-back scenarios with the host already in swap, held 0.15% errors but reac
 382 ms.
 
 The 20 VU zone outage failed on its first attempt with 21.95% errors (9174 of 41785 requests) and
-passed on retry with 0.00% errors over 45995 requests. The cause was scheduling. The drained
-`zone-b` node happened to hold one of the two NGINX data plane replicas and the single NGF control
-plane pod, so the entry point was gone for about 30 seconds while the replacement pod pulled its
-image on another node. k6 reported connection resets and EOFs rather than 5xx responses, so those
-requests never reached the app. By the retry both gateway pods sat in zones a and c, and the
-`ScheduleAnyway` spread never moves one back, so the second drain hit a zone with no gateway pod
-on it.
+passed on retry with 0.00% errors over 45995 requests. The cause was scheduling. The host ports
+live on the `zone-a` node, and the data plane Service is a NodePort with
+`externalTrafficPolicy: Cluster`, so kube-proxy round-robins arriving requests into either data
+plane replica whichever zone it sits in. The drained `zone-b` node held one of those two replicas
+and the single NGF control plane pod, so for about 30 seconds a share of the traffic went to a pod
+that was being evicted while its replacement pulled its image on another node. k6 reported
+connection resets and EOFs rather than 5xx responses, so those requests never reached the app. By
+the retry all three gateway pods, two data plane and one control plane, sat in zones a and c, and
+the `ScheduleAnyway` spread never moves one back, so the second drain hit a zone with no gateway
+pod on it.
 
-A zone outage is therefore transparent only when the drained zone holds no gateway pod. Fixing it
-means a second NGF control plane replica and a preStop drain on the data plane, neither of which is
-in this repo. A control run at 10 VUs on the same build passed with 0.00% errors and a p95 of
-120 ms.
+A zone outage is therefore transparent only when the drained zone holds no gateway pod. The fix is
+to keep a data plane replica on the node that owns the host ports and route only to it, with
+`externalTrafficPolicy: Local`, or in a cloud to put a load balancer spanning the zones in front of
+the nodes. Neither is in this repo. A control run at 10 VUs on the same build passed with 0.00%
+errors and a p95 of 120 ms.
 
 ## How to read a failure
 
 Every chaos script fails the same way: the k6 process it started in the background exits non-zero,
-which means a threshold was breached, and the script prints the summary before exiting non-zero
-itself. Read the `http_req_failed` line first: a high error rate with a normal p95 means requests
-were refused rather than served slowly, and an EOF or a connection reset in place of a status code
-means they never reached the app. Run `kubectl get pods -A -w` in a second terminal for the whole
-scenario and watch the gateway pods in `gateway` and `nginx-gateway`, because a zone drain that
-evicts them takes the entry point down for as long as the replacement needs to pull and start.
+which means a threshold was breached. The script prints the k6 summary and exits non-zero itself.
+Read the `http_req_failed` line first. A high error rate with a normal p95 means requests were
+refused rather than served slowly. An EOF or a connection reset in place of a status code means
+they never reached the app. During a zone outage also run `kubectl -n gateway get pods -w` in a
+second terminal and watch whether the gateway pods move ([Results](#results)).
