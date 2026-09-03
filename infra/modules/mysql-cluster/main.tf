@@ -152,8 +152,13 @@ resource "kubectl_manifest" "mysql_podmonitor" {
 resource "null_resource" "wait_online" {
   provisioner "local-exec" {
     command = <<-EOT
-      kubectl --kubeconfig ${var.kubeconfig_path} -n mysql wait innodbcluster/mysql --for=jsonpath='{.status.cluster.status}'=ONLINE --timeout=1500s &&
-      until kubectl --kubeconfig ${var.kubeconfig_path} -n mysql get deploy mysql-router >/dev/null 2>&1; do sleep 5; done &&
+      set -e
+      kubectl --kubeconfig ${var.kubeconfig_path} -n mysql wait innodbcluster/mysql --for=jsonpath='{.status.cluster.status}'=ONLINE --timeout=1500s
+      for i in $(seq 1 180); do
+        kubectl --kubeconfig ${var.kubeconfig_path} -n mysql get deploy mysql-router >/dev/null 2>&1 && break
+        if [ "$i" -eq 180 ]; then echo "mysql-router deployment not created after 15 minutes" >&2; exit 1; fi
+        sleep 5
+      done
       kubectl --kubeconfig ${var.kubeconfig_path} -n mysql wait deploy/mysql-router --for=condition=Available --timeout=1500s
     EOT
   }
