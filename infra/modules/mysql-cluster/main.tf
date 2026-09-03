@@ -122,6 +122,7 @@ resource "kubectl_manifest" "innodb_cluster" {
             labelSelector:
               matchLabels:
                 mysql.oracle.com/cluster: mysql
+                component: mysqld
       metrics:
         enable: true
         image: prom/mysqld-exporter:v0.15.1
