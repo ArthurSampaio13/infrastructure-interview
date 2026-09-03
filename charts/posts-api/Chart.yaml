@@ -2,6 +2,8 @@ apiVersion: v2
 name: posts-api
 description: Posts API deployment for the infrastructure interview challenge
 type: application
+# preStop.sleep, matchLabelKeys, unhealthyPodEvictionPolicy and nodeTaintsPolicy
+kubeVersion: ">=1.30.0-0"
 version: "0.3.0"
 appVersion: "0.3.0"
 keywords:

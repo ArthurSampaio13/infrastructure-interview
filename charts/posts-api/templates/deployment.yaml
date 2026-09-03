@@ -25,6 +25,8 @@ spec:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
+          # A cordoned or drained zone stops counting, so the other zones can still take new replicas.
+          nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels: {{- include "posts-api.podSelectorLabels" . | nindent 14 }}
           matchLabelKeys:

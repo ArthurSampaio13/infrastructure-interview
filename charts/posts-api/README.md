@@ -14,6 +14,10 @@ Posts API deployment for the infrastructure interview challenge
 
 * <https://github.com/ArthurSampaio13/infrastructure-interview>
 
+## Requirements
+
+Kubernetes: `>=1.30.0-0`
+
 ## Values
 
 | Key | Type | Default | Description |
