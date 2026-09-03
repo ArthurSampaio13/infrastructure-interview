@@ -100,10 +100,10 @@ including the runs that failed and why, are in [docs/testing.md](docs/testing.md
 
 ## Releases
 
-CI runs lint, build, scan, chart and infra checks on every push. A `v*` tag builds a multi-arch
-image, scans it, pushes it to `docker.io/skizay/posts-api` (and a private copy), signs both with
-cosign, and pushes the chart to `oci://ghcr.io/arthursampaio13/charts`. See
-[docs/release.md](docs/release.md).
+CI runs lint, build, scan, chart and infra checks on every pull request and every push to `develop`
+or `main`. A `v*` tag scans a build, then pushes a multi-arch image to `docker.io/skizay/posts-api`
+(and a private copy), signs both with cosign, and pushes the chart to
+`oci://ghcr.io/arthursampaio13/charts`. See [docs/release.md](docs/release.md).
 
 ## Design decisions
 
