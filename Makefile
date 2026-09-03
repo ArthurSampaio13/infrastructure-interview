@@ -9,6 +9,7 @@ REGISTRY ?= public
 export VUS ?= 10
 
 .PHONY: setup up down infra build kind-load deploy test load chaos lint grafana hosts drain
+.NOTPARALLEL:
 
 setup:
 	mise install
@@ -22,6 +23,7 @@ infra:
 down:
 	-cd $(ENV_DIR) && terragrunt stack run destroy --non-interactive
 	-kind delete cluster --name $(CLUSTER)
+	rm -rf $(ENV_DIR)/.state $(ENV_DIR)/.terragrunt-stack
 
 build:
 	docker build -t $(IMAGE):$(TAG) app
