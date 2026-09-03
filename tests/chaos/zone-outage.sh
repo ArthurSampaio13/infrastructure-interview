@@ -3,7 +3,7 @@ set -euo pipefail
 # shellcheck source=tests/chaos/lib.sh
 source "$(dirname "$0")/lib.sh"
 
-# On kind the host ports are mapped on the zone-a node only (see README, Architecture),
+# On kind the host ports are mapped on the zone-a node only (see docs/architecture.md, Cluster and zones),
 # so draining zone-a would take the entry point down with it. Default to zone-b.
 ZONE="${1:-zone-b}"
 mapfile -t NODES < <(kubectl get nodes -l "topology.kubernetes.io/zone=$ZONE" -o name)

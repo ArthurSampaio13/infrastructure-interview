@@ -61,7 +61,7 @@ See [docs/architecture.md](docs/architecture.md).
 ## Getting started
 
 Requirements: Docker, [mise](https://mise.jdx.dev), 8 GB of RAM, ports 80 and 443 free, and on
-Linux or WSL2 the inotify limits raised (`docs/getting-started.md` has the two `sysctl` lines).
+Linux or WSL2 the inotify limits raised ([docs/getting-started.md](docs/getting-started.md) has the two `sysctl` lines).
 
 ```bash
 make setup    # install pinned tools, register pre-commit hooks
