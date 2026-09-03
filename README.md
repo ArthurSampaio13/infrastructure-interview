@@ -21,19 +21,6 @@ on a local kind cluster.
 
 ## About
 
-```mermaid
-flowchart LR
-    client((client)) -->|https| gw[Gateway<br/>NGINX Gateway Fabric]
-    gw -->|HTTPRoute| svc[Service posts-api]
-    svc --> p1[pod zone-a]
-    svc --> p2[pod zone-b]
-    svc --> p3[pod zone-c]
-    p1 & p2 & p3 -->|6446| router[MySQL Router]
-    router --> m0[(mysql-0)]
-    router --> m1[(mysql-1)]
-    router --> m2[(mysql-2)]
-```
-
 Requests enter through a Gateway API `Gateway` served by NGINX Gateway Fabric, with TLS from a
 local CA. The app runs three replicas spread across zones behind a PodDisruptionBudget and an HPA.
 MySQL is a three-instance InnoDB Cluster, one per zone, reached through MySQL Router. Prometheus,
