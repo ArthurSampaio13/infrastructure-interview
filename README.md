@@ -1,10 +1,24 @@
 # infrastructure-interview
 
-A small posts API (Express + TypeORM + MySQL) packaged and deployed the way I would run
-it in production: containerized, highly available across three zones, observable, and
-reproducible from a single command on a local kind cluster.
+[![ci](https://github.com/ArthurSampaio13/infrastructure-interview/actions/workflows/ci.yaml/badge.svg)](https://github.com/ArthurSampaio13/infrastructure-interview/actions/workflows/ci.yaml)
+[![release](https://img.shields.io/github/v/release/ArthurSampaio13/infrastructure-interview)](https://github.com/ArthurSampaio13/infrastructure-interview/releases)
 
-## Architecture
+A posts API (Express, TypeORM, MySQL) packaged and deployed the way it would run in production:
+containerized, highly available across three zones, observable, and reproducible from one command
+on a local kind cluster.
+
+## Table of contents
+
+- [About](#about)
+- [Built with](#built-with)
+- [Getting started](#getting-started)
+- [Usage](#usage)
+- [Testing](#testing)
+- [Releases](#releases)
+- [Design decisions](#design-decisions)
+- [Repository layout](#repository-layout)
+
+## About
 
 ```mermaid
 flowchart LR
@@ -19,343 +33,101 @@ flowchart LR
     router --> m2[(mysql-2)]
 ```
 
-The kind cluster has one control-plane node and three workers, each labelled as a
-different `topology.kubernetes.io/zone` (`zone-a`, `zone-b`, `zone-c`). Host ports 80
-and 443 map to nodePorts 30080/30443 on the `zone-a` worker, so a request into the
-cluster lands on that node's kube-proxy and gets forwarded no matter which zone
-answers it. The mapping is a kind constraint: a host port can be bound once, so on this
-cluster losing `zone-a` also loses the entry point. In a cloud the load balancer in front
-of the nodes spans the zones and the rest of the setup is unchanged. The chaos scenarios
-drain `zone-b` by default for this reason.
+Requests enter through a Gateway API `Gateway` served by NGINX Gateway Fabric, with TLS from a
+local CA. The app runs three replicas spread across zones behind a PodDisruptionBudget and an HPA.
+MySQL is a three-instance InnoDB Cluster, one per zone, reached through MySQL Router. Prometheus,
+Grafana, Loki and Alloy cover metrics and logs. The platform is OpenTofu and Terragrunt; the app is
+a Helm chart.
 
-Traffic enters through a Gateway API `Gateway` (`gateway/gateway`) served by NGINX
-Gateway Fabric. The nginx data plane runs two replicas spread across zones with a
-PodDisruptionBudget of `maxUnavailable: 1`, so a node drain never takes both. The HTTP listener only redirects to HTTPS; the HTTPS listener
-terminates TLS for `*.local.test` using a certificate issued by a local CA that
-cert-manager creates on cluster bootstrap: a self-signed root, then a CA certificate,
-then a `ClusterIssuer` backed by that CA.
+See [docs/architecture.md](docs/architecture.md).
 
-The app runs as a Deployment with 3 replicas, spread across zones with a
-`topologySpreadConstraint` (`maxSkew: 1`, `whenUnsatisfiable: DoNotSchedule`) and a
-preferred pod anti-affinity by hostname. A PodDisruptionBudget allows one voluntary
-eviction at a time (`maxUnavailable: 1`), which holds at 3 replicas and still holds when
-the HPA is at 6; `unhealthyPodEvictionPolicy: AlwaysAllow` keeps a crash-looping pod
-from blocking node maintenance. A HorizontalPodAutoscaler scales on CPU between 3 and
-10 replicas in the chart defaults; the local values file caps `maxReplicas` at 6 to fit
-an 8 GB host. It scales on CPU because the app is CPU-bound (JSON in, JSON out, a
-single Node.js thread), so CPU is the first thing that saturates and it is the signal
-metrics-server already provides. The 250m request is the number the target percentage
-is measured against; a 100m request would have scaled out at 70m of actual use. A NetworkPolicy allows ingress only from the Gateway namespace (port
-3000), the monitoring namespace (port 9464) and the app's own namespace, and egress only
-to the MySQL router, DNS, and itself. kind's default CNI, kindnet, accepts the policy but
-does not enforce it; see [Design decisions](#design-decisions).
+## Built with
 
-MySQL is an InnoDB Cluster managed by the official MySQL Operator: three server
-instances, one per zone via the same topology spread constraint, and two MySQL
-Router instances in front of them. The app never talks to a MySQL server directly.
-It connects to the router on port 6446, and the router routes to whichever instance
-is currently primary. Schema migrations run as a Helm `pre-install`/`pre-upgrade`
-hook Job, so a `helm upgrade` always applies pending migrations before the new
-Deployment rolls out.
+| Tool | Version | Role |
+| --- | --- | --- |
+| kind | 0.30.0 (Kubernetes 1.34.0) | local cluster, 1 control plane + 3 workers |
+| OpenTofu / Terragrunt | 1.11.5 / 1.1.0 | platform provisioning |
+| Helm | 4.0.4 | app chart |
+| NGINX Gateway Fabric | 2.6.7 | Gateway API implementation |
+| cert-manager | 1.21.1 | local CA and TLS |
+| MySQL Operator | 2.3.0 | InnoDB Cluster and Router |
+| kube-prometheus-stack / Loki / Alloy | 88.6.1 / 7.3.0 / 1.12.1 | metrics, logs |
+| Node.js / Express / TypeORM | 22 / 4 / 0.3 | the API |
+| k6 | 1.3.0 | smoke, load and chaos tests |
+| Trivy / cosign | 0.69.2 / 2.5.0 | image scan and signature |
 
-Observability is a kube-prometheus-stack (Prometheus, Alertmanager, Grafana) plus
-Loki and Alloy for logs. Grafana is reachable at `https://grafana.local.test`. The
-chart ships an app dashboard, loaded through the kube-prometheus-stack dashboard
-sidecar, and three `PrometheusRule` alerts: `PostsApiHighErrorRate`,
-`PostsApiHighLatency`, and `PostsApiReplicasBelowPDB` (see
-[Operations](#operations)).
+`mise.toml` and `infra/environments/common/addons.yaml` pin these versions.
 
-The platform (kind cluster, Gateway/cert-manager/observability addons, MySQL cluster)
-is provisioned with OpenTofu and Terragrunt: reusable modules under
-`infra/modules`, thin per-unit wiring under `infra/units`, and one environment,
-`infra/environments/local`, that assembles the units into a Terragrunt stack. The
-app itself deploys separately with plain Helm through `scripts/helm/deploy-app.sh`,
-because the platform changes rarely and the app changes on every commit; forcing both
-through the same tool and the same release cadence would slow the app down for no
-reason.
+## Getting started
 
-The image is a multi-stage, distroless, non-root, multi-architecture build
-(`linux/amd64`, `linux/arm64`), signed with cosign on release. CI scans it with
-Trivy on every build. A dated `.trivyignore` covers CVEs that are only fixed in
-a base image Google has not republished yet, with a comment saying why and when to
-drop each entry.
-
-## Requirements
-
-- Docker.
-- [mise](https://mise.jdx.dev), then `make setup` (`mise install` plus
-  `pre-commit install`). Every tool version used here, Node, OpenTofu, Terragrunt,
-  Helm, kind, kubectl, k6, and the linters used in CI, is pinned in `mise.toml`.
-- At least 8 GB of RAM. The local Helm values (autoscaling cap, Prometheus retention,
-  single-binary Loki) and the load tests (`VUS=10` in the Makefile) are sized for a
-  7.6 GB host, and that host runs close to its limit: the three MySQL servers alone
-  use about 750 MiB each. A zone drain reschedules Prometheus, MySQL and the app at
-  once, and that is where the host runs out first. On a bigger machine, `VUS=20 make
-  chaos` is the load the earlier runs used.
-- inotify limits high enough for kind and kube-proxy. The Linux/WSL2 default of 128
-  is too low, and kind fails with "too many open files". Set:
-
-  ```bash
-  sudo sysctl -w fs.inotify.max_user_instances=512
-  sudo sysctl -w fs.inotify.max_user_watches=1048576
-  ```
-
-- Ports 80 and 443 free on the host. They are what kind maps to the Gateway
-  nodePorts.
-- `make hosts` writes to `/etc/hosts` and asks for `sudo`.
-
-## Quick start
+Requirements: Docker, [mise](https://mise.jdx.dev), 8 GB of RAM, ports 80 and 443 free, and on
+Linux or WSL2 the inotify limits raised (`docs/getting-started.md` has the two `sysctl` lines).
 
 ```bash
 make setup    # install pinned tools, register pre-commit hooks
-make up       # kind cluster + platform addons + mysql + build + deploy
-make hosts    # add posts.local.test and grafana.local.test to /etc/hosts
-make test     # k6 functional smoke test
-make load     # k6 load test (SLO: error rate <1%, p95 <300ms)
-make chaos    # four failure scenarios, each run under load
-make down     # destroy everything
+make up       # kind cluster + platform addons + mysql + build + deploy (about 17 min)
+make hosts    # add posts.local.test and grafana.local.test to /etc/hosts (sudo)
+make test     # k6 smoke test
 ```
 
-URLs: `https://posts.local.test` (API) and `https://grafana.local.test` (Grafana;
-`make grafana` prints the admin password).
+See [docs/getting-started.md](docs/getting-started.md) for what each step does and first-run
+problems.
 
-## Repository layout
+## Usage
 
-| Path                    | Contents                                                                 |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `app/`                   | The posts API: Express, TypeORM, migrations, Dockerfile.                |
-| `charts/posts-api/`      | Helm chart for the app (Deployment, HPA, PDB, NetworkPolicy, alerts, migration hook). |
-| `values/posts-api/`      | Per-environment values layered on the chart defaults (`local.yaml`: hostname, HPA cap). |
-| `infra/modules/`         | OpenTofu modules: `kind-cluster`, `platform-addons`, `mysql-cluster`.   |
-| `infra/units/`           | Terragrunt wiring per module (source, dependencies, inputs).            |
-| `infra/environments/`    | The `local` environment: a Terragrunt stack over the three units.       |
-| `scripts/`               | Operational scripts (deploy, drain, hosts file, pull secret, Grafana creds). |
-| `tests/`                 | k6 smoke/load scripts and the chaos scenario scripts.                   |
+| URL | What |
+| --- | --- |
+| `https://posts.local.test/posts` | the API |
+| `https://grafana.local.test` | Grafana; `make grafana` prints the password |
+
+| Target | What |
+| --- | --- |
+| `make load` | k6 load test; SLO: errors < 1%, p95 < 300 ms |
+| `make chaos` | four failure scenarios under load |
+| `make drain NODE=<name>` | drain a node, PDB-aware |
+| `make deploy REGISTRY=private TAG=<version>` | pull from the private repository |
+| `make down` | destroy everything |
+
+Runbooks (failover, full outage recovery, password rotation, alerts):
+[docs/operations.md](docs/operations.md).
+
+## Testing
+
+A k6 smoke test covers every route and error code. A k6 load test holds a mixed read/write load
+against an SLO. Four chaos scripts (zone outage, MySQL primary kill, rolling upgrade, random pod
+kill) run that load test while injecting the fault and fail on the same SLO. Results per version,
+including the runs that failed and why, are in [docs/testing.md](docs/testing.md).
+
+## Releases
+
+CI runs lint, build, scan, chart and infra checks on every push. A `v*` tag builds a multi-arch
+image, scans it, pushes it to `docker.io/skizay/posts-api` (and a private copy), signs both with
+cosign, and pushes the chart to `oci://ghcr.io/arthursampaio13/charts`. See
+[docs/release.md](docs/release.md).
 
 ## Design decisions
 
-#### MySQL 8 InnoDB Cluster instead of MariaDB 5.5
+- [MySQL 8 InnoDB Cluster instead of MariaDB 5.5](docs/design-decisions.md#mysql-8-innodb-cluster-instead-of-mariadb-55)
+- [Migrations instead of `synchronize`](docs/design-decisions.md#migrations-instead-of-synchronize)
+- [Gateway API and NGINX Gateway Fabric instead of ingress-nginx](docs/design-decisions.md#gateway-api-and-nginx-gateway-fabric-instead-of-ingress-nginx)
+- [NetworkPolicy declared, kindnet kept](docs/design-decisions.md#networkpolicy-declared-kindnet-kept)
+- [cert-manager with a local CA, not an ACME issuer](docs/design-decisions.md#cert-manager-with-a-local-ca-not-an-acme-issuer)
+- [OpenTofu and Terragrunt for the platform, plain Helm for the app](docs/design-decisions.md#opentofu-and-terragrunt-for-the-platform-plain-helm-for-the-app)
+- [Distroless, non-root, cosign-signed image](docs/design-decisions.md#distroless-non-root-cosign-signed-image)
+- [App modernization](docs/design-decisions.md#app-modernization-node-22-typeorm-03-typescript-5)
+- [Cost](docs/design-decisions.md#cost)
+- [What was left out on purpose](docs/design-decisions.md#what-was-left-out-on-purpose)
 
-The original stack ran MariaDB 5.5, which is out of support and has no first-class
-Kubernetes operator story. MySQL 8 with the official MySQL Operator gives group
-replication, automatic primary election, and a router that the app can point at
-without knowing which instance is primary, which is what "highly available across
-zones" actually requires.
+## Repository layout
 
-#### Migrations instead of `synchronize`
-
-TypeORM's `synchronize: true` diffs entities against the live schema and applies the
-result directly. That's convenient for a prototype and unsafe for anything with data
-in it. Migrations are explicit, reviewable, and run once per deploy as a Helm hook,
-so a rollout never carries an untracked schema change along with it.
-
-#### Gateway API and NGINX Gateway Fabric instead of ingress-nginx
-
-ingress-nginx is in maintenance mode with no further feature development. The
-Gateway API is where routing configuration is headed, and NGF is a maintained
-implementation of it. Using `HTTPRoute` from the chart also means the app does not
-need ingress-controller-specific annotations.
-
-#### NetworkPolicy declared, kindnet kept
-
-kind's default CNI, kindnet, does not implement NetworkPolicy: the API server accepts
-the object and nothing enforces it. Running Cilium instead does enforce it, and a
-version of this repo did; its four agents added about 600 MiB of resident memory to a
-host that was already near its limit, and the chaos scenarios started failing on memory
-pressure rather than on anything they were meant to test. The policy stays in the chart
-because it costs nothing here and is enforced on any cluster whose CNI supports it (GKE
-Dataplane V2, Calico, Cilium); the local cluster keeps kindnet. To check enforcement on
-such a cluster, run a curl pod in `default` against `posts-api.posts-api:3000` and
-expect it to fail, then one in `gateway` and expect HTTP 200.
-
-#### cert-manager with a local CA, not an ACME issuer
-
-There is no public DNS record to prove ownership of on a kind cluster, so a local CA
-is the practical way to get real TLS for `*.local.test`. A real environment would
-swap the `ClusterIssuer` for Let's Encrypt or another ACME issuer; nothing else in
-the chart or Gateway configuration would need to change.
-
-#### OpenTofu and Terragrunt for the platform, plain Helm for the app
-
-OpenTofu rather than Terraform: HashiCorp relicensed Terraform under the BSL in
-2023, and OpenTofu is the Linux Foundation fork that stayed open source. It is a
-drop-in replacement for the code here and resolves the same providers from the
-same registry.
-
-The platform (cluster, addons, database) changes rarely and benefits from
-Terraform-style state and plan/apply review. The app changes on every commit and
-needs a fast, ordinary `helm upgrade` path, including from CI. Splitting them means
-an app deploy never waits on a `tofu plan`, and a platform change never gets bundled
-into an app release.
-
-#### Distroless, non-root, cosign-signed image
-
-The runtime image has no shell, no package manager, and no root user, which shrinks
-what an attacker can do with a container escape or a dependency compromise. Cosign
-signing on release gives anyone pulling the image a way to verify it came from this
-pipeline.
-
-#### App modernization (Node 22, TypeORM 0.3, TypeScript 5)
-
-The original app targeted an EOL Node line and an old TypeORM major version with a
-callback-heavy API. Moving to current majors is a normal maintenance step, and it
-unblocks distroless images, which only ship supported runtimes.
-
-#### Cost
-
-Nothing here bills, but the same choices are what keep a real bill down. `e2e.yaml`
-is `workflow_dispatch` only, so a kind cluster is not built on every push and the
-expensive job runs when someone asks for it. Prometheus keeps 24h of data, which is
-enough to read a chaos run and small enough to fit the single node it runs on. Every
-workload declares requests and limits, so the scheduler packs nodes instead of
-guessing, and the HPA is capped (`maxReplicas` 6 locally) so a traffic spike cannot
-scale the bill without a ceiling. Observability runs as a single-node stack with a
-single-binary Loki rather than a distributed one, which is the right trade at this
-size and the first thing to revisit at a larger one.
-
-#### What was left out on purpose
-
-Authentication, rate limiting, and a unit test suite are not in `app/`. None of them
-change how the infrastructure around the app has to behave, and the brief for this
-exercise is the infrastructure, not the API. Pagination is in: an unbounded list
-endpoint is an availability problem. `GET /posts` returns at most 200 rows per call
-(`limit`, `offset`, newest first). Correctness is instead
-covered end to end: the k6 smoke test exercises every route and every documented
-error path, and the chaos scenarios exercise the app under real failures. There is
-also no cloud environment; everything here runs on a local kind cluster, and the
-decisions above already call out where a cloud deployment would differ, most
-obviously an ACME issuer instead of a local CA.
-
-## Testing and chaos scenarios
-
-`tests/load/smoke.js` is a functional check: it creates a post, lists posts with
-`?limit=5`, reads the created post by id, and checks the documented error responses
-(400 on a bad `limit`, 400 on a non-numeric id, 404 on an unknown id, 400 on an
-invalid body, 400 on malformed JSON). `make test` runs it with 1 VU and 1 iteration.
-
-`tests/load/load.js` is a load test: it seeds one post, then runs a mix of 80% reads
-against that post and 20% writes, ramping to `VUS` virtual users (the Makefile sets 10;
-the script alone defaults to 20) and holding for `DURATION` (default 2m, set via the
-`DURATION` env var). It asserts an error rate under 1% and a p95 latency under 300ms; a failed
-threshold makes k6 exit non-zero.
-
-`make chaos` runs four scenarios, in this order. Each one starts the load test in the
-background, injects a fault, and then checks that the same load test still met its
-SLO; the chaos scripts fail the same way the load test does, on a non-zero k6 exit
-code.
-
-| Scenario           | Script                       | What it does                                                          | Expected outcome                                                                                   |
-| ------------------- | ----------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Zone outage         | `zone-outage.sh`              | Cordons and drains every node in one zone while load runs.               | The PDB holds; the replica scheduled in that zone stays `Pending` until the zone comes back. MySQL reports 2/3 online instances during the outage, then 3/3 once the zone returns. |
-| MySQL primary kill  | `mysql-primary-kill.sh`       | Finds the current InnoDB Cluster primary and deletes its pod.            | Group replication elects a new primary; the MySQL Router fails writes and reads over to it without the app being restarted. |
-| Rolling upgrade     | `rolling-upgrade.sh`          | Restarts the Deployment (`kubectl rollout restart`) under load.          | The rollout completes with no SLO violation, the same effect as a `helm upgrade` to a new image tag. |
-| Random pod kill     | `pod-kill.sh`                 | Deletes a random `posts-api` pod, eight times, ten seconds apart.        | Kubernetes reschedules each pod; the SLO holds throughout.                                            |
-
-Latest full run (2026-08-31, on v0.2.1, 20 VUs): 4/4 scenarios passed, with p95 latency
-of 91ms, 146ms, 159ms, and 179ms and an error rate of 0%, 0.42%, 0%, and 0% respectively,
-in the order above.
-
-On 0.3.0 (2026-09-02, 10 VUs, same 7.6 GB host): zone outage, MySQL primary kill and
-rolling upgrade passed with p95 of 133ms, 152ms and 269ms and error rates of 0%, 0.24%
-and 0%. Random pod kill did not meet the SLO in two attempts. The first failed on errors
-when the host stalled for about 30 seconds, the control plane restarted and the operator
-rolled both MySQL Routers at once, which is not what the scenario injects. The second,
-after 25 minutes of back-to-back scenarios with the host already in swap, held 0.15%
-errors but reached a p95 of 382ms. The four scenarios were run one after the other with
-the scripts in the table, the same sequence `make chaos` runs.
-
-## Operations
-
-#### Node maintenance
-
-`make drain NODE=<name>` runs `kubectl drain` with `--ignore-daemonsets
---delete-emptydir-data`, which respects the PodDisruptionBudget: if another
-`posts-api` pod is already unavailable (`maxUnavailable: 1`), the drain blocks instead
-of evicting. Run `kubectl uncordon <name>` once maintenance is done.
-
-#### MySQL failover
-
-Losing a single MySQL instance is self-healing: group replication elects a new
-primary automatically and the router redirects traffic to it, with no operator
-intervention needed. This is what the "MySQL primary kill" chaos scenario checks.
-
-The MySQL Routers restart when the cluster loses quorum, which is what the chaos
-scenarios provoke; they recover on their own once the cluster is ONLINE again.
-
-The operator does not roll changes to `podSpec` resources or `mycnf` onto an existing
-InnoDB Cluster (its log reports `sts_changed=False`). A fresh `make up` gets them; on a
-running cluster, patch the `mysql` StatefulSet template and let it roll one instance at
-a time.
-
-#### Recovering from a full outage
-
-If every MySQL pod restarts at once, a host reboot, for example, group replication
-cannot elect a primary on its own, because no member has enough of the others online
-to reach quorum. The InnoDB Cluster needs a manual reboot from complete outage, run
-from a `mysqlsh` shell in one of the MySQL pods:
-
-```bash
-PW=$(kubectl -n mysql get secret mysql-root -o jsonpath='{.data.rootPassword}' | base64 -d)
-kubectl -n mysql exec -it mysql-0 -c mysql -- mysqlsh --js -uroot -p"$PW" \
-  -e "dba.rebootClusterFromCompleteOutage()"
-```
-
-#### Alerts
-
-The chart ships three `PrometheusRule` alerts, visible in Alertmanager and Grafana:
-
-| Alert                        | Fires when                                                     | Check first                                                        |
-| ------------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `PostsApiHighErrorRate`        | 5xx rate over 1% of requests for 5 minutes.                        | Recent deploys or migrations; app logs in Loki for the failing route.  |
-| `PostsApiHighLatency`          | p95 request latency over 500ms for 5 minutes.                      | MySQL router/InnoDB Cluster health; whether the HPA is scaling; node CPU. |
-| `PostsApiReplicasBelowPDB`     | The PDB reports zero allowed disruptions for 2 minutes.            | `kubectl get pdb,pods -n posts-api`, node status per zone, recent rollout status. |
-
-The alert thresholds are deliberately looser than the k6 load-test SLO (p95 <300ms).
-The SLO is what the chaos scripts assert automatically during a fault; the alerts
-are what a human gets paged on.
-
-## CI/CD
-
-`ci.yaml` runs on every pull request and every push to `develop` or `main`, as four
-independent jobs: `app` (lint, format check, build, Docker build, Trivy scan),
-`chart` (helm lint, `helm-docs` drift check, `helm template` validated against
-Kubernetes and CRD schemas with `kubeconform`, and, on pull requests, a check that
-`Chart.yaml`'s version was bumped whenever `charts/` changed), `infra` (`tofu fmt`,
-`terragrunt hcl fmt`, `terraform-docs` drift check and `tflint` per module,
-`terragrunt stack run validate`), and `lint` (`pre-commit run --all-files`,
-`actionlint`).
-
-`e2e.yaml` runs on `workflow_dispatch` only, to avoid spinning up a kind cluster on
-every push. It provisions the platform on the runner, builds and deploys the app,
-runs the k6 smoke test and `helm test`, and uploads pod, event, and log diagnostics
-if anything fails.
-
-`release.yaml` runs on any `v*` tag. It builds and pushes a multi-arch image to
-`docker.io/skizay/posts-api` (tagged with the version and `latest`) and
-`docker.io/skizay/posts-api-private` (tagged with the version only), scans the
-pushed image with Trivy, signs both repositories by digest with cosign in keyless mode, packages the Helm chart and pushes it as
-an OCI artifact to `oci://ghcr.io/arthursampaio13/charts` (a separate registry path,
-so the chart and the image never compete for the same tag), and creates a GitHub Release
-with generated notes. It fails early if `Chart.yaml`'s version does not match the
-tag, so the chart and the image never disagree about which version they are; the
-chart is at `0.3.0`, so the next release tag is `v0.3.0`. It needs the
-`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repo secrets. Releases are tagged on
-`main`, which stays a rebase of `develop`.
-
-## Private registry
-
-To pull from `skizay/posts-api-private` instead of the public repository, create a
-pull secret from a Docker Hub token:
-
-```bash
-DOCKERHUB_USERNAME=<user> DOCKERHUB_TOKEN=<token> scripts/registry/create-pull-secret.sh
-make deploy REGISTRY=private TAG=0.2.1
-```
-
-The tag is explicit because `release.yaml` only ever pushes released version tags to
-`skizay/posts-api-private`. The default `TAG=dev` belongs to the local build path,
-which loads the image straight into the kind nodes and never pushes it anywhere.
-
-The script creates a `dockerhub` image pull secret in the `posts-api` namespace.
-`REGISTRY=private` points the deploy at the private repository and adds that secret
-to the Deployment's `imagePullSecrets`.
+| Path | Contents |
+| --- | --- |
+| `app/` | The posts API: Express, TypeORM, migrations, Dockerfile. |
+| `charts/posts-api/` | Helm chart for the app (Deployment, HPA, PDB, NetworkPolicy, alerts, migration hook). |
+| `values/posts-api/` | Per-environment values layered on the chart defaults (`local.yaml`: hostname, HPA cap). |
+| `infra/modules/` | OpenTofu modules: `kind-cluster`, `platform-addons`, `mysql-cluster`. |
+| `infra/units/` | Terragrunt wiring per module (source, dependencies, inputs). |
+| `infra/environments/` | The `local` environment: a Terragrunt stack over the three units. |
+| `scripts/` | Operational scripts (deploy, drain, hosts file, pull secret, Grafana creds). |
+| `tests/` | k6 smoke/load scripts and the chaos scenario scripts. |
+| `docs/` | Architecture, getting started, operations, testing, releases, design decisions. |
