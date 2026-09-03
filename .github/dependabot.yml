@@ -4,11 +4,32 @@ updates:
     directory: /app
     schedule:
       interval: weekly
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: /app
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: terraform
+    directories: ["/infra/modules/*"]
+    schedule:
+      interval: weekly
+    groups:
+      providers:
+        patterns: ["*"]
+        update-types: [minor, patch]
