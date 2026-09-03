@@ -165,9 +165,14 @@ resource "null_resource" "wait_online" {
   depends_on = [kubectl_manifest.innodb_cluster]
 }
 
+locals {
+  # A new name per password pair, so a rotated password re-creates the Job instead of skipping it.
+  user_job_suffix = nonsensitive(substr(sha256("${random_password.app.result}${random_password.migration.result}"), 0, 8))
+}
+
 resource "kubernetes_job" "app_user" {
   metadata {
-    name      = "create-app-user"
+    name      = "create-app-user-${local.user_job_suffix}"
     namespace = kubernetes_namespace.mysql.metadata[0].name
   }
   spec {
@@ -206,7 +211,7 @@ resource "kubernetes_job" "app_user" {
               }
             }
           }
-          # The routers restart as members join, so poll the port before the real statements.
+          # ALTER USER so a rotated password reaches MySQL; CREATE USER alone keeps the old one.
           # REVOKE before GRANT so a narrower grant set actually narrows on re-run; GRANT only adds.
           command = ["bash", "-c", <<-EOT
             for _ in $(seq 1 60); do
@@ -215,10 +220,12 @@ resource "kubernetes_job" "app_user" {
             done
             mysql -h mysql.mysql.svc.cluster.local -P 6446 -uroot -e "
               CREATE DATABASE IF NOT EXISTS ${var.db_name};
-              CREATE USER IF NOT EXISTS '${var.db_user}'@'%' IDENTIFIED BY '$APP_PASSWORD';
+              CREATE USER IF NOT EXISTS '${var.db_user}'@'%';
+              ALTER USER '${var.db_user}'@'%' IDENTIFIED BY '$APP_PASSWORD';
               REVOKE ALL PRIVILEGES, GRANT OPTION FROM '${var.db_user}'@'%';
               GRANT SELECT, INSERT, UPDATE, DELETE ON ${var.db_name}.* TO '${var.db_user}'@'%';
-              CREATE USER IF NOT EXISTS '${var.db_migration_user}'@'%' IDENTIFIED BY '$MIGRATION_PASSWORD';
+              CREATE USER IF NOT EXISTS '${var.db_migration_user}'@'%';
+              ALTER USER '${var.db_migration_user}'@'%' IDENTIFIED BY '$MIGRATION_PASSWORD';
               REVOKE ALL PRIVILEGES, GRANT OPTION FROM '${var.db_migration_user}'@'%';
               GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP, REFERENCES ON ${var.db_name}.* TO '${var.db_migration_user}'@'%';"
           EOT
